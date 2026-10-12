@@ -1,0 +1,11 @@
+{
+  "name": "blox-legends",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Roblox-style iPad learning game that trains 11+ (Kent Test / Shepway Test) skills.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "serve": "npx http-server -p 8080 -c-1 ."
+  }
+}
