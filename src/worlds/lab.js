@@ -6,8 +6,8 @@ import * as THREE from 'three';
 import { World } from './base.js';
 import { platform, box, cubeBuild, rotationQuaternion, disposeTree } from '../engine/blocks.js';
 import { labelSprite, gridTexture } from '../engine/textures.js';
-import { stemTexture, optionTexture } from '../mechanics/board-three.js';
 import { pictureOptions } from '../mechanics/board.js';
+import { frameBuild, questionBoard, answerCard } from '../mechanics/pattern-plates.js';
 import { answerPad } from './decor.js';
 
 const PUZZLES = 5;
@@ -108,20 +108,8 @@ export class Lab extends World {
     if (q.kind === 'complete') {
       // blocks inside a see-through frame: how many more fill it?
       const S = 1.0;
-      const b = cubeBuild(q.target, 0xff8c42, S);
-      const { w, d, h } = q.frame;
+      const b = frameBuild(q, S);
       const centre = b.userData.centre;
-      const frame = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(w * S, h * S, d * S)),
-        new THREE.LineBasicMaterial({ color: 0x2f7cf6 }),
-      );
-      frame.position.set(((w - 1) / 2 - centre[0]) * S, ((h - 1) / 2 - centre[1]) * S, ((d - 1) / 2 - centre[2]) * S);
-      const glass = new THREE.Mesh(
-        new THREE.BoxGeometry(w * S, h * S, d * S),
-        new THREE.MeshLambertMaterial({ color: 0x9fd7ff, transparent: true, opacity: 0.18, depthWrite: false }),
-      );
-      glass.position.copy(frame.position);
-      b.add(frame, glass);
       // turned a little so the front, side and top can all be seen
       pedestal(0, -6.5, 2, 3.4);
       b.rotation.y = 0.55;
@@ -148,25 +136,14 @@ export class Lab extends World {
       });
     } else if (q.kind !== 'rotate' && q.kind !== 'top') {
       // everything else is shown on the board at the back
-      const tex = stemTexture(q, { w: 1024, h: 512 });
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshBasicMaterial({ map: tex }));
       const pics = pictureOptions(q);
-      board.position.set(0, pics ? 6.2 : 5.2, -11);
-      const legs = [-4.5, 4.5].map((x) => {
-        const leg = box(0.4, board.position.y - 2.7, 0.4, 0x5b6478);
-        leg.position.set(x, (board.position.y - 2.7) / 2, -11.1);
-        return leg;
-      });
+      const { board, legs } = questionBoard(q, { y: pics ? 6.2 : 5.2 });
       root.add(board, ...legs);
       pz.board = board;
-      if (pictureOptions(q)) {
+      if (pics) {
         const spacing = n === 3 ? 5 : 4.3;
         q.options.forEach((opt, k) => {
-          const x = (k - (n - 1) / 2) * spacing;
-          const card = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ map: optionTexture(q, opt), transparent: true }));
-          card.position.set(x, 2.0, -5);
-          const stand = box(0.3, 0.8, 0.3, 0x5b6478);
-          stand.position.set(x, 0.4, -5);
+          const { card, stand } = answerCard(q, opt, { x: (k - (n - 1) / 2) * spacing });
           root.add(card, stand);
           this.tappable(card, () => this.choose(k));
           pz.tapObjs.push(card);

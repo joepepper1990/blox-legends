@@ -1,7 +1,9 @@
 // The scheduler (plan §6.3, §7): what comes next, and which items may be used.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSession, nextItem, noteAnswer, planNext, frontier, newAllowance, isStuck } from '../src/learning/scheduler.js';
+import { createSession, nextItem, noteAnswer, planNext, frontier, newAllowance, isStuck, serve } from '../src/learning/scheduler.js';
+import { SKILLS } from '../src/learning/skills.js';
+import { stageOf } from '../src/learning/learner.js';
 import { buildAssessment, bossReadiness } from '../src/learning/assessment.js';
 import { applyAttempt, freshLearn, dayOf } from '../src/learning/learner.js';
 import { upgradeLearn } from '../src/learning/migrate-learn.js';
@@ -138,4 +140,21 @@ test('boss questions come only from the protected pools, and readiness ignores u
   const v1 = upgradeLearn({ skills: { 'm.x3': { n: 20, c: 19, ema: 0.95 } } }, DATE.getTime());
   const r = bossReadiness({ mech: 'choice-path', realm: 'y3-aut', learn: v1, statuses: ALL });
   assert.ok(r.missing.includes('m.x3'), 'carried over but not yet verified');
+});
+
+test('every live skill can reach Applied: its transfer formats are served in their worlds', () => {
+  const missing = [];
+  for (const s of SKILLS.filter((x) => x.status === 'live')) {
+    for (const t of s.transfer) {
+      const learn = freshLearn();
+      learn.sk[s.id] = { n: 20, c: 19, b: s.target, bs: 0, pf: 19, ev: [], ms: { intro: 0, prac: 0, acc: 0 }, uv: 0, rf: 0, chk: null, tr: {}, tl: [], fa: [], fl: [], last: DAY };
+      assert.equal(stageOf(learn.sk[s.id]).stage, 'accurate');
+      const ctx = ctxFor(t.mech, learn, { statuses: ['live'] });
+      const got = serve(ctx, { s: s.id, pu: 'transfer', b: s.target, format: t.format });
+      if (!got) missing.push(`${s.id} ${t.format} in ${t.mech}`);
+      else assert.equal(got.q.format, t.format);
+    }
+    if (s.zone !== 'word') assert.ok(new Set(s.transfer.map((t) => t.mech)).size >= s.appliedMechs, s.id);
+  }
+  assert.deepEqual(missing, []);
 });

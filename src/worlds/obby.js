@@ -7,8 +7,8 @@ import { World } from './base.js';
 import { platform, box } from '../engine/blocks.js';
 import { labelSprite } from '../engine/textures.js';
 import { fitLabelHeight } from '../engine/fit.js';
-import { optionTexture } from '../mechanics/board-three.js';
-import { pictureOptions, stemKind, paintStem } from '../mechanics/board.js';
+import { pictureOptions } from '../mechanics/board.js';
+import { glassCard, questionPicture } from '../mechanics/choice-path.js';
 import { chest, cloud } from './decor.js';
 import { OBBY, rowZ, finishZ as finishZOf, panelX } from './obby-layout.js';
 
@@ -109,11 +109,7 @@ export class Obby extends World {
       frame.position.y = -0.35;
       let label;
       if (pictureOptions(row.q)) {
-        // a picture answer: its card stands over the glass
-        const tex = optionTexture(row.q, opt, { size: 384 });
-        label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-        label.scale.set(1.9, 2.4, 1);
-        label.position.y = 1.45;
+        label = glassCard(row.q, opt); // a picture answer stands over the glass
       } else {
         label = labelSprite(opt.label, fitLabelHeight(opt.label, 1.3, PANEL + 0.1, { size: 90 }), { size: 90 });
         label.position.y = 1.6;
@@ -139,7 +135,7 @@ export class Obby extends World {
     }
     // coded lines, a build or a pattern go in the question panel, where
     // nothing on the bridge can hide them
-    const picture = stemKind(row.q) === 'text' ? null : stemCanvas(row.q);
+    const picture = questionPicture(row.q);
     this.present(row.q, `Row ${this.current + 1} of ${ROWS}`, { picture });
     this.rowSign.material.map.dispose();
     const s = labelSprite(picture ? 'Look at the picture ↑' : row.q.prompt, 1.6, { size: 80 });
@@ -260,16 +256,6 @@ export class Obby extends World {
     if (this.started && !this.done) this.game.ui.setTimer(performance.now() - this.startTime);
     if (this.rowSign.visible) this.rowSign.position.y = 5.2 + Math.sin(performance.now() / 400) * 0.15;
   }
-}
-
-// The question's picture for the question panel.
-function stemCanvas(q) {
-  const c = document.createElement('canvas');
-  c.width = 720;
-  c.height = 300;
-  const g = c.getContext('2d');
-  paintStem(g, q, { x: 10, y: 10, w: 700, h: 280 });
-  return c;
 }
 
 // Shuffle options but keep track of the answer.

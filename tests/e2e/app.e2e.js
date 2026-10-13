@@ -426,3 +426,23 @@ test('every skill and transfer format can be shown and answered in its world', a
   assert.deepEqual(problems, []);
   assert.deepEqual(page.errors, []);
 });
+
+test('a skill he is accurate at comes back in another world as a transfer question', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await page.evaluate(() => {
+    const learn = __game.save.data.learn;
+    learn.sk['m.x3'] = { n: 20, c: 19, b: 3, bs: 0, pf: 19, ev: [1, 1, 1, 1, 1, 1, 1, 1], ms: { intro: 0, prac: 0, acc: 0 }, uv: 0, rf: 0, chk: null, tr: {}, tl: [], fa: [], fl: [], last: 0 };
+  });
+  await playRun(page, 'vault');
+  const got = await page.evaluate(async () => {
+    const ops = await __game.save.getOps();
+    const all = ops.flatMap((o) => o.p?.a || []).concat(__game.save.pending);
+    const t = all.filter((a) => a.pu === 'transfer');
+    return { transfers: t.map((a) => `${a.s}:${a.fm}:${a.m}`), tl: __game.save.data.learn.sk['m.x3'].tl.length };
+  });
+  assert.ok(got.transfers.some((x) => x.startsWith('m.x3:word:logic-lock')), JSON.stringify(got.transfers));
+  assert.ok(got.tl >= 1, 'counted towards Applied');
+  assert.deepEqual(page.errors, []);
+});
