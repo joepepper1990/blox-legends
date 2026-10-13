@@ -250,7 +250,7 @@ button {
   top: calc(12px + var(--safe-t));
   left: 50%;
   transform: translateX(-50%);
-  max-width: min(720px, 60vw);
+  max-width: min(820px, 70vw);
   background: var(--paper);
   border: 4px solid var(--ink);
   border-radius: var(--radius);
@@ -271,6 +271,12 @@ button {
 }
 .qcard .qtext {
   flex: 1;
+}
+.qcard .qpic {
+  display: block;
+  flex: none;
+  width: auto;
+  height: min(110px, 14vh);
 }
 .qcard .qsub {
   display: block;

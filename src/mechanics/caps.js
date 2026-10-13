@@ -22,6 +22,8 @@ export const MECHANICS = {
     label: { height: 1.3, maxWidth: { 2: 3.1, 3: 3.1 }, minHeight: 0.8, font: { size: 90, letterSpacing: 4 } },
     lines: 2,
     display: ['text', 'lines', 'cubes', 'builds', 'figure', 'grid'],
+    // the row sign and the cards over the glass are flat drawings
+    pictures: ['cubes', 'builds'],
     input: 'commit',
     lookahead: 1,
     moveAllowanceMs: 1100, // the quickest row-to-row move is ~1.2 s (tests/levels.test.js)

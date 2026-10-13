@@ -376,3 +376,53 @@ test('a wrong answer explains the exact mistake when it is a known one', async (
   }
   assert.equal(checked, 1, 'found a question with a known mistake');
 });
+
+// Every skill can be shown in its home world and in every world its
+// transfer formats send it to (plan §4, §7 "Applied").
+test('every skill and transfer format can be shown and answered in its world', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  const WORLD = { 'choice-path': 'obby', 'logic-lock': 'vault', 'pattern-plates': 'lab' };
+  const jobs = await page.evaluate(async () => {
+    const { SKILLS, ZONES } = await import('./src/learning/skills.js');
+    const { GEN } = await import('./src/learning/gen/index.js');
+    const out = [];
+    for (const s of SKILLS.filter((x) => x.status !== 'planned' && GEN[x.gen])) {
+      const home = s.home || ZONES[s.zone].home;
+      if (home) out.push({ s: s.id, mech: home, format: null });
+      for (const t of s.transfer) out.push({ s: s.id, mech: t.mech, format: t.format });
+    }
+    return out;
+  });
+  const problems = [];
+  for (const mech of Object.keys(WORLD)) {
+    await page.evaluate((w) => __game.go(w), WORLD[mech]);
+    await page.waitForFunction(() => __game.world.test.state().hasQ);
+    for (const job of jobs.filter((j) => j.mech === mech)) {
+      const res = await page.evaluate(async ({ job }) => {
+        const { makeItem, formatsAt, canAsk } = await import('./src/learning/question.js');
+        const { fitsMechanic } = await import('./src/mechanics/fit.js');
+        const { MECHANICS } = await import('./src/mechanics/caps.js');
+        const { seeded } = await import('./src/learning/rng.js');
+        const count = MECHANICS[job.mech].options[1];
+        const band = 3;
+        const format = job.format || formatsAt(job.s, band, count).find((f) => canAsk(job.s, f, band, count));
+        if (!format || !canAsk(job.s, format, band, count)) return { skip: true };
+        const q = makeItem(job.s, { band, count, format, rng: seeded(7), accept: (x) => fitsMechanic(x, job.mech) === null });
+        __game.world.test.ask(q);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const shown = __game.world.test.question();
+        return { ok: shown === q, n: q.options.length, kind: q.kind || q.format };
+      }, { job });
+      if (!res.skip && !res.ok) problems.push(`${job.s} ${job.format || 'home'} in ${mech}`);
+    }
+    // the last one shown is answered through the real path
+    const before = await page.evaluate(() => __game.save.pending.length + __game.save.data.learn.cnt);
+    await page.evaluate(() => __game.world.test.answer(true));
+    const after = await page.evaluate(() => __game.save.pending.length + __game.save.data.learn.cnt);
+    assert.ok(after > before, `${mech}: answer recorded`);
+  }
+  assert.deepEqual(problems, []);
+  assert.deepEqual(page.errors, []);
+});

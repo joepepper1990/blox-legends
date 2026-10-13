@@ -7,6 +7,8 @@ import { World } from './base.js';
 import { platform, box } from '../engine/blocks.js';
 import { labelSprite } from '../engine/textures.js';
 import { fitLabelHeight } from '../engine/fit.js';
+import { optionTexture } from '../mechanics/board-three.js';
+import { pictureOptions, stemKind, paintStem } from '../mechanics/board.js';
 import { chest, cloud } from './decor.js';
 import { OBBY, rowZ, finishZ as finishZOf, panelX } from './obby-layout.js';
 
@@ -56,11 +58,9 @@ export class Obby extends World {
     this.started = false;
     this.done = false;
     this.startTime = 0;
-    // Three glass panels: two-way guesses are too lucky to count as evidence.
-    this.startRun('obby', 'choice-path', {
-      count: 3,
-      canShow: ({ display, q }) => display.includes('text') && (!q || !q.door),
-    });
+    // Choice Path (mechanics/caps.js). Three glass panels: two-way guesses
+    // are too lucky to count as evidence.
+    this.startRun('obby', 'choice-path', { count: 3 });
     this.buildRow(0);
     this.buildRow(1);
 
@@ -107,8 +107,17 @@ export class Obby extends World {
         new THREE.MeshLambertMaterial({ color: 0x5b6478 }),
       );
       frame.position.y = -0.35;
-      const label = labelSprite(opt.label, fitLabelHeight(opt.label, 1.3, PANEL + 0.1, { size: 90 }), { size: 90 });
-      label.position.y = 1.6;
+      let label;
+      if (pictureOptions(row.q)) {
+        // a picture answer: its card stands over the glass
+        const tex = optionTexture(row.q, opt, { size: 384 });
+        label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+        label.scale.set(1.9, 2.4, 1);
+        label.position.y = 1.45;
+      } else {
+        label = labelSprite(opt.label, fitLabelHeight(opt.label, 1.3, PANEL + 0.1, { size: 90 }), { size: 90 });
+        label.position.y = 1.6;
+      }
       label.visible = this.rows.indexOf(row) === this.current; // only the row being asked
       group.add(glass, frame, label);
       this.root.add(group);
@@ -128,11 +137,15 @@ export class Obby extends World {
       this.rowSign.visible = false;
       return;
     }
-    this.present(row.q, `Row ${this.current + 1} of ${ROWS}`);
+    // coded lines, a build or a pattern go in the question panel, where
+    // nothing on the bridge can hide them
+    const picture = stemKind(row.q) === 'text' ? null : stemCanvas(row.q);
+    this.present(row.q, `Row ${this.current + 1} of ${ROWS}`, { picture });
     this.rowSign.material.map.dispose();
-    const s = labelSprite(row.q.prompt, 1.6, { size: 80 });
+    const s = labelSprite(picture ? 'Look at the picture ↑' : row.q.prompt, 1.6, { size: 80 });
     this.rowSign.material.map = s.material.map;
     this.rowSign.scale.copy(s.scale);
+    this.rowSign.material.needsUpdate = true;
     this.rowSign.position.set(0, 5.2, row.z);
     this.rowSign.visible = true;
     for (const p of row.panels) p.label.visible = true;
@@ -219,6 +232,14 @@ export class Obby extends World {
         if (!correct) this.later(200, () => this.onFall());
       },
       finish: () => this.finish(),
+      ask: (q) => {
+        const row = this.rows[this.current];
+        row.q = q;
+        row.first = true;
+        this.placePanels(row);
+        this.showQuestion();
+      },
+      question: () => this.rows[this.current]?.q,
     };
   }
 
@@ -239,6 +260,16 @@ export class Obby extends World {
     if (this.started && !this.done) this.game.ui.setTimer(performance.now() - this.startTime);
     if (this.rowSign.visible) this.rowSign.position.y = 5.2 + Math.sin(performance.now() / 400) * 0.15;
   }
+}
+
+// The question's picture for the question panel.
+function stemCanvas(q) {
+  const c = document.createElement('canvas');
+  c.width = 720;
+  c.height = 300;
+  const g = c.getContext('2d');
+  paintStem(g, q, { x: 10, y: 10, w: 700, h: 280 });
+  return c;
 }
 
 // Shuffle options but keep track of the answer.

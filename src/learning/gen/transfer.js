@@ -10,7 +10,7 @@ import { story } from './stories.js';
 import { ROTATIONS, ROTS_Y, rotate, normalize } from '../gen-spatial.js';
 import { isoClear } from '../../engine/iso-draw.js';
 
-// On a Code Vault door builds are drawn flat, so each one is turned to a view
+// On a Code Vault door or a Glass Bridge sign builds are drawn flat, so each one is turned to a view
 // where no cube hides. Turning a build never changes the answer: the right
 // one is still the same build turned, and a mirror image or a changed build
 // still can't be turned to match.
@@ -168,7 +168,8 @@ export function makeTransfer(skill, gen, opts) {
     const q = gen.make(skill, { ...opts, format: base });
     q.base = base;
     q.format = opts.format;
-    if (opts.format === 'door' && q.kind === 'rotate') clearViews(q);
+    // doors and bridge signs draw builds flat
+    if ((opts.format === 'door' || opts.format === 'glass') && q.kind === 'rotate') clearViews(q);
     return q;
   }
   const maker = MAKERS[opts.format];

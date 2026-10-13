@@ -73,9 +73,9 @@ export class World {
   }
 
   // Put the question on screen and read it aloud (timing starts here).
-  present(q, sub) {
+  present(q, sub, opts = {}) {
     const spoken = this.spoken(q);
-    this.game.ui.question(q.prompt, spoken, sub);
+    this.game.ui.question(q.prompt, spoken, sub, opts);
     this.run.shown(q, spoken);
   }
 

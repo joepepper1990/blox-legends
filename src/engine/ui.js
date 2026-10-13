@@ -132,13 +132,23 @@ export class UI {
     this.shopBtn.style.display = shop ? '' : 'none';
   }
 
-  question(text, speak, sub = '') {
+  // `picture`: a canvas shown under the question (a pattern, a build, a
+  // written sum) when the world has nowhere better to put it.
+  question(text, speak, sub = '', { picture = null } = {}) {
     if (!text) {
       this.qcard.classList.add('hidden');
       return;
     }
     this.qtext.innerHTML = '';
     this.qtext.append(document.createTextNode(text));
+    this.qpic?.remove();
+    this.qpic = null;
+    if (picture) {
+      // beside the words, so the card stays short and the world stays in view
+      picture.classList.add('qpic');
+      this.qtext.after(picture);
+      this.qpic = picture;
+    }
     if (sub) this.qtext.append(el('span', 'qsub', sub));
     this.qspeak = speak || text;
     this.qcard.classList.remove('hidden');

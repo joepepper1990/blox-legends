@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { World } from './base.js';
 import { platform, box, material } from '../engine/blocks.js';
-import { runeDoorTexture, labelSprite } from '../engine/textures.js';
+import { labelSprite } from '../engine/textures.js';
+import { doorTexture } from '../mechanics/logic-lock.js';
 import { answerPad, chest } from './decor.js';
 
 const DOORS = 5;
@@ -80,11 +81,8 @@ export class Vault extends World {
     this.right = 0;
     this.done = false;
     this.startTime = performance.now();
-    // Doors show coded lines today; more kinds arrive with the shared mechanic.
-    this.startRun('vault', 'logic-lock', {
-      count: (band) => (band <= 2 ? 3 : 4),
-      canShow: ({ display, q }) => display.some((k) => k === 'lines' || k === 'text') && (!q || !!q.door),
-    });
+    // Doors draw every kind the Logic Lock mechanic declares (mechanics/caps.js).
+    this.startRun('vault', 'logic-lock', { count: (band) => (band <= 2 ? 3 : 4) });
     this.setupDoor(0);
 
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
@@ -94,14 +92,19 @@ export class Vault extends World {
     );
   }
 
-  setupDoor(i) {
+  setupDoor(i, given = null) {
     const g = this.game;
     const door = this.doors[i];
     if (!door) return;
-    door.q = this.nextQuestion();
+    for (const p of door.pads) {
+      this.root.remove(p.group);
+      this.removeTrigger(p.trigger);
+      this.tappables = this.tappables.filter((o) => o !== p.group);
+    }
+    door.q = given || this.nextQuestion();
     door.first = true;
     door.doorMat.map?.dispose();
-    door.doorMat.map = runeDoorTexture(door.q.door);
+    door.doorMat.map = doorTexture(door.q);
     door.doorMat.needsUpdate = true;
     const n = door.q.options.length;
     const spacing = n === 3 ? 3.2 : 2.5;
@@ -126,7 +129,8 @@ export class Vault extends World {
     const q = door.q;
     const band = this.bandOf(q.skill);
     const isPos = q.skill === 'v.alphaPos';
-    g.ui.showAlpha(true, { numbers: !isPos && band <= 2, anchors: isPos || band <= 4 });
+    // the alphabet strip is for letter codes, as on the real test paper
+    g.ui.showAlpha(q.skill.startsWith('v.') && !!q.door, { numbers: !isPos && band <= 2, anchors: isPos || band <= 4 });
     this.present(q, `Door ${this.current + 1} of ${DOORS}`);
   }
 
@@ -175,6 +179,9 @@ export class Vault extends World {
         this.choose(door, k);
       },
       finish: () => this.finish(),
+      // show a particular question on the current door
+      ask: (q) => this.setupDoor(this.current, q),
+      question: () => this.doors[this.current]?.q,
     };
   }
 

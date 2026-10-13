@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { World } from './base.js';
 import { platform, box, cubeBuild, rotationQuaternion, disposeTree } from '../engine/blocks.js';
 import { labelSprite, gridTexture } from '../engine/textures.js';
+import { stemTexture, optionTexture } from '../mechanics/board-three.js';
+import { pictureOptions } from '../mechanics/board.js';
 import { answerPad } from './decor.js';
 
 const PUZZLES = 5;
@@ -49,12 +51,9 @@ export class Lab extends World {
     this.done = false;
     this.puzzle = null;
     this.startTime = performance.now();
-    // Builds, turned builds and views from above today (times-table arrays
-    // are counting builds too); more kinds arrive with the shared mechanic.
-    this.startRun('lab', 'pattern-plates', {
-      count: (band) => (band <= 2 ? 3 : 4),
-      canShow: ({ format, q }) => (q ? ['count', 'rotate', 'top'].includes(q.kind) : ['count', 'rotate', 'top', 'array'].includes(format)),
-    });
+    // Pattern Plates (mechanics/caps.js): builds in 3D, anything else on the
+    // board at the back, picture answers above their plates.
+    this.startRun('lab', 'pattern-plates', { count: (band) => (band <= 2 ? 3 : 4) });
 
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
     g.ui.banner('BUILD LAB', 'Use your eyes and brain!');
@@ -76,10 +75,10 @@ export class Lab extends World {
     this.puzzle = null;
   }
 
-  newPuzzle() {
+  newPuzzle(given = null) {
     const g = this.game;
     this.clearPuzzle();
-    const q = this.nextQuestion();
+    const q = given || this.nextQuestion();
     const root = new THREE.Group();
     this.root.add(root);
     const pz = { q, root, pads: [], tapObjs: [], builds: [], first: true, wobble: this.bandOf(q.skill) <= 3 };
@@ -96,7 +95,42 @@ export class Lab extends World {
       return m;
     };
 
-    if (q.kind === 'count') {
+    const addPads = (z, spacing, opts = {}) =>
+      q.options.forEach((opt, k) => {
+        const x = (k - (n - 1) / 2) * spacing;
+        const pad = answerPad(this, x, 0, z, opt.label, { w: 2.6, d: 2.4, color: PAD_COLORS[k], ...opts });
+        pad.onStep = () => this.choose(k);
+        this.tappable(pad.group, () => this.choose(k));
+        pz.tapObjs.push(pad.group);
+        pz.pads.push(pad);
+      });
+
+    if (q.kind === 'complete') {
+      // blocks inside a see-through frame: how many more fill it?
+      const S = 1.0;
+      const b = cubeBuild(q.target, 0xff8c42, S);
+      const { w, d, h } = q.frame;
+      const centre = b.userData.centre;
+      const frame = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(w * S, h * S, d * S)),
+        new THREE.LineBasicMaterial({ color: 0x2f7cf6 }),
+      );
+      frame.position.set(((w - 1) / 2 - centre[0]) * S, ((h - 1) / 2 - centre[1]) * S, ((d - 1) / 2 - centre[2]) * S);
+      const glass = new THREE.Mesh(
+        new THREE.BoxGeometry(w * S, h * S, d * S),
+        new THREE.MeshLambertMaterial({ color: 0x9fd7ff, transparent: true, opacity: 0.18, depthWrite: false }),
+      );
+      glass.position.copy(frame.position);
+      b.add(frame, glass);
+      // turned a little so the front, side and top can all be seen
+      pedestal(0, -6.5, 2, 3.4);
+      b.rotation.y = 0.55;
+      b.position.set(0, 2 + 0.1 + (centre[1] + 0.5) * S, -6.5);
+      root.add(b);
+      pz.target = b;
+      pz.builds.push(b);
+      addPads(-0.8, 3.4);
+    } else if (q.kind === 'count') {
       pedestal(0, -6, 1.2, 5);
       const b = cubeBuild(q.target, 0xff8c42, 1.15);
       const h = Math.max(...q.target.map((c) => c[1])) + 1;
@@ -112,6 +146,33 @@ export class Lab extends World {
         pz.tapObjs.push(pad.group);
         pz.pads.push(pad);
       });
+    } else if (q.kind !== 'rotate' && q.kind !== 'top') {
+      // everything else is shown on the board at the back
+      const tex = stemTexture(q, { w: 1024, h: 512 });
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshBasicMaterial({ map: tex }));
+      const pics = pictureOptions(q);
+      board.position.set(0, pics ? 6.2 : 5.2, -11);
+      const legs = [-4.5, 4.5].map((x) => {
+        const leg = box(0.4, board.position.y - 2.7, 0.4, 0x5b6478);
+        leg.position.set(x, (board.position.y - 2.7) / 2, -11.1);
+        return leg;
+      });
+      root.add(board, ...legs);
+      pz.board = board;
+      if (pictureOptions(q)) {
+        const spacing = n === 3 ? 5 : 4.3;
+        q.options.forEach((opt, k) => {
+          const x = (k - (n - 1) / 2) * spacing;
+          const card = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ map: optionTexture(q, opt), transparent: true }));
+          card.position.set(x, 2.0, -5);
+          const stand = box(0.3, 0.8, 0.3, 0x5b6478);
+          stand.position.set(x, 0.4, -5);
+          root.add(card, stand);
+          this.tappable(card, () => this.choose(k));
+          pz.tapObjs.push(card);
+        });
+        addPads(-1.6, spacing, { w: 2.4, d: 2.2, labelH: 0.9, labelY: 1.3 });
+      } else addPads(-0.8, n === 3 ? 3.6 : 3.1, { w: n === 3 ? 3 : 2.6 });
     } else {
       // target, raised up at the back
       pedestal(0, -11, 3.2, 4);
@@ -248,6 +309,8 @@ export class Lab extends World {
         this.choose(k);
       },
       finish: () => {}, // the lab finishes by itself after the last puzzle
+      ask: (q) => this.newPuzzle(q),
+      question: () => this.puzzle?.q,
     };
   }
 
