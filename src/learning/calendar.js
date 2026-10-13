@@ -1,6 +1,6 @@
 // School calendar → realm. Realms follow the school year (plan §3): each
 // term has its realm; holidays keep the realm of the term just finished.
-// Nothing here knows a date of birth: the parent sets the cohort (the school
+// No age or birthday is ever needed: the parent sets the cohort (the school
 // year, by its September, in which the player is in Year 3).
 //
 // Term dates are close to Kent's; the parent can override the realm from the
