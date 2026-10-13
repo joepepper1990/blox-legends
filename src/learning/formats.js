@@ -8,6 +8,8 @@
 //                 no coins (plan §7, §8.1)
 //   speakOptions  read the options aloud (never for spelling!)
 //   transfer      used only to show the skill in a new context ("Applied")
+//   presentation  a transfer that shows a practice item in another world;
+//                 its display needs are those of the item's own format
 //   display       what a mechanic must be able to show: text (a short
 //                 prompt), lines (1–2 short coded lines), prose (a few
 //                 sentences), column (a written sum), cubes, builds, grid,
@@ -40,7 +42,6 @@ export const FORMATS = {
   'col-sub': f('number', { minMs: 1500, display: ['column'] }),
   'missing-add': f('number', { minMs: 1200 }),
   'missing-sub': f('number', { minMs: 1200 }),
-  word: f('number', { minMs: 2500, display: ['prose'] }),
   // ---- alphabet and codes ----
   after: f('letters', { direct: true, minMs: 600, display: ['text', 'lines'] }),
   before: f('letters', { direct: true, minMs: 600, display: ['text', 'lines'] }),
@@ -75,13 +76,20 @@ export const FORMATS = {
   aan: f('word', { minMs: 900 }),
   gap: f('word', { minMs: 1500, display: ['prose'] }),
   // ---- transfer contexts (plan §7 "Applied") ----
+  // New questions that use the skill in another way:
+  word: f('number', { minMs: 2500, display: ['prose'] }),
   array: f('number', { minMs: 1500, transfer: true, display: ['cubes'] }),
   tenframe: f('number', { minMs: 1200, transfer: true, display: ['cubes'] }),
-  glass: f('letters', { minMs: 1200, transfer: true, display: ['lines'] }),
-  secret: f('letters', { minMs: 2000, transfer: true, display: ['prose'] }),
-  sign: f('number', { minMs: 1500, transfer: true, display: ['cubes', 'figure', 'grid'] }),
-  door: f('choice', { minMs: 1500, transfer: true, display: ['grid', 'figure', 'cubes'] }),
-  builds: f('choice', { minMs: 1500, transfer: true, display: ['cubes', 'builds'] }),
+  complete: f('number', { minMs: 1500, transfer: true, display: ['cubes'] }),
+  // The same kind of item shown in another world (`base` is the practice
+  // format it was made with): on the Glass Bridge, a Code Vault door, or a
+  // Build Lab board.
+  glass: f('letters', { minMs: 1200, transfer: true, presentation: true }),
+  door: f('letters', { minMs: 1200, transfer: true, presentation: true }),
+  board: f('letters', { minMs: 1200, transfer: true, presentation: true }),
 };
 
 export const isTransferFormat = (id) => !!FORMATS[id]?.transfer;
+// What a question needs from a mechanic (presentation transfers keep the
+// needs of the item they show).
+export const displayOf = (q) => FORMATS[q.base || q.format]?.display || ['text'];

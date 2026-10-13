@@ -16,6 +16,7 @@
 //   core      needed for boss readiness (plan §7)
 //   gen       generator family (gen/index.js)
 //   formats   practice formats (formats.js)
+//   home      the mechanic it is mostly practised in (default: its zone's)
 //   transfer  [{mech, format}] contexts that count towards "Applied"
 //   target    the band (1–5) at which Accurate is judged for this realm
 //   pre       skills that should be at Practising or above first
@@ -43,13 +44,17 @@ const V = (o) => ({ zone: 'code', area: 'verbal', ...o });
 const S = (o) => ({ zone: 'shape', area: 'spatial', ...o });
 const E = (o) => ({ zone: 'word', area: 'english', ...o });
 
-// Transfer contexts shared by many skills.
-const NUM_T = [{ mech: 'logic-lock', format: 'word' }, { mech: 'choice-path', format: 'word' }];
+// Transfer contexts (plan §7 "Applied": 3 correct across 2 mechanics).
+// `glass`, `door` and `board` show a practice item in the Glass Bridge, Code
+// Vault or Build Lab; `word`, `array`, `tenframe` and `complete` are new
+// questions that use the skill another way.
+const NUM_T = [{ mech: 'logic-lock', format: 'word' }, { mech: 'pattern-plates', format: 'board' }];
+const NUM_SHOW_T = [{ mech: 'logic-lock', format: 'door' }, { mech: 'pattern-plates', format: 'board' }];
 const TABLE_T = [{ mech: 'pattern-plates', format: 'array' }, { mech: 'logic-lock', format: 'word' }];
-const CODE_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'logic-lock', format: 'secret' }];
-const WORD_VR_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'logic-lock', format: 'secret' }];
-const CUBE_T = [{ mech: 'choice-path', format: 'sign' }, { mech: 'logic-lock', format: 'door' }];
-const NVR_T = [{ mech: 'logic-lock', format: 'door' }, { mech: 'choice-path', format: 'sign' }];
+const CODE_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'pattern-plates', format: 'board' }];
+const WORD_VR_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'pattern-plates', format: 'board' }];
+const CUBE_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'pattern-plates', format: 'complete' }];
+const SHAPE_T = [{ mech: 'choice-path', format: 'glass' }, { mech: 'logic-lock', format: 'door' }];
 
 const table = (t, realm, pre, extra = {}) =>
   N({
@@ -87,17 +92,17 @@ export const SKILLS = [
   table(7, 'y4-aut', ['m.x5', 'm.x2']),
   table(12, 'y4-aut', ['m.x10', 'm.x6']),
   // ---- Year 3 Autumn ----
-  N({ id: 'm.pv3', strand: 'place-value', name: 'Place value in 3-digit numbers', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'pv3', formats: ['pv-digit', 'pv-partition', 'pv-make'], transfer: NUM_T, target: 3, pre: [], status: 'ready' }),
-  N({ id: 'm.cmp3', strand: 'place-value', name: 'Comparing and ordering numbers to 1,000', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'cmp3', formats: ['cmp-big', 'cmp-small', 'cmp-sign'], transfer: NUM_T, target: 3, pre: ['m.pv3'], status: 'ready' }),
-  N({ id: 'm.more', strand: 'place-value', name: '10 or 100 more or less', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'more', formats: ['more', 'less'], transfer: NUM_T, target: 3, pre: ['m.pv3'], status: 'ready' }),
-  N({ id: 'm.steps', strand: 'place-value', name: 'Counting in 4s, 8s, 50s and 100s', realm: 'y3-aut', cls: 'procedural', gen: 'steps', formats: ['steps-next', 'steps-missing'], transfer: NUM_T, target: 3, pre: ['m.x4'], status: 'ready' }),
+  N({ id: 'm.pv3', strand: 'place-value', name: 'Place value in 3-digit numbers', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'pv3', formats: ['pv-digit', 'pv-partition', 'pv-make'], transfer: NUM_SHOW_T, target: 3, pre: [], status: 'ready' }),
+  N({ id: 'm.cmp3', strand: 'place-value', name: 'Comparing and ordering numbers to 1,000', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'cmp3', formats: ['cmp-big', 'cmp-small', 'cmp-sign'], transfer: NUM_SHOW_T, target: 3, pre: ['m.pv3'], status: 'ready' }),
+  N({ id: 'm.more', strand: 'place-value', name: '10 or 100 more or less', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'more', formats: ['more', 'less'], transfer: NUM_SHOW_T, target: 3, pre: ['m.pv3'], status: 'ready' }),
+  N({ id: 'm.steps', strand: 'place-value', name: 'Counting in 4s, 8s, 50s and 100s', realm: 'y3-aut', cls: 'procedural', gen: 'steps', formats: ['steps-next', 'steps-missing'], transfer: NUM_SHOW_T, target: 3, pre: ['m.x4'], status: 'ready' }),
   N({ id: 'm.add3m', strand: 'add-sub', name: 'Adding ones, tens or hundreds to a 3-digit number', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'add3m', formats: ['add'], transfer: NUM_T, target: 3, pre: ['m.pv3', 'm.add20'], status: 'ready' }),
   N({ id: 'm.sub3m', strand: 'add-sub', name: 'Taking ones, tens or hundreds from a 3-digit number', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'sub3m', formats: ['sub'], transfer: NUM_T, target: 3, pre: ['m.pv3', 'm.sub20'], status: 'ready' }),
   N({ id: 'm.addcol', strand: 'add-sub', name: 'Column addition with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'addcol', formats: ['col-add'], transfer: NUM_T, target: 3, pre: ['m.add3m'], status: 'ready' }),
   N({ id: 'm.subcol', strand: 'add-sub', name: 'Column subtraction with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'subcol', formats: ['col-sub'], transfer: NUM_T, target: 3, pre: ['m.sub3m'], status: 'ready' }),
-  N({ id: 'm.inverse', strand: 'add-sub', name: 'Missing numbers and inverse operations', realm: 'y3-aut', cls: 'procedural', gen: 'inverse', formats: ['missing-add', 'missing-sub'], transfer: NUM_T, target: 3, pre: ['m.add3m', 'm.sub3m'], status: 'ready' }),
+  N({ id: 'm.inverse', strand: 'add-sub', name: 'Missing numbers and inverse operations', realm: 'y3-aut', cls: 'procedural', gen: 'inverse', formats: ['missing-add', 'missing-sub'], transfer: NUM_SHOW_T, target: 3, pre: ['m.add3m', 'm.sub3m'], status: 'ready' }),
   N({ id: 'm.double2', strand: 'add-sub', name: 'Doubling and halving bigger numbers', realm: 'y3-aut', cls: 'procedural', gen: 'double2', formats: ['double', 'half'], transfer: NUM_T, target: 3, pre: ['m.double', 'm.pv3'], status: 'ready' }),
-  N({ id: 'm.wp1', strand: 'problems', name: 'One-step word problems', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'wp1', formats: ['word'], transfer: [{ mech: 'logic-lock', format: 'word' }, { mech: 'pattern-plates', format: 'array' }], target: 3, pre: ['m.add3m', 'm.sub3m', 'm.x3'], status: 'ready' }),
+  N({ id: 'm.wp1', strand: 'problems', name: 'One-step word problems', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'wp1', formats: ['word'], home: 'logic-lock', transfer: [{ mech: 'choice-path', format: 'glass' }, { mech: 'pattern-plates', format: 'board' }], target: 3, pre: ['m.add3m', 'm.sub3m', 'm.x3'], status: 'ready' }),
 
   // ================= CODE (Code Vault) =================
   V({ id: 'v.alphaNext', strand: 'alphabet', name: 'Alphabet order', realm: 'found', cls: 'fact', gen: 'alphaNext', formats: ['after', 'before', 'two-after'], transfer: CODE_T, target: 2, pre: [], status: 'live' }),
@@ -117,14 +122,14 @@ export const SKILLS = [
 
   // ================= SHAPE (Build Lab) =================
   S({ id: 's.count1', strand: 'cubes', name: 'Counting blocks', realm: 'found', cls: 'procedural', gen: 'count1', formats: ['count'], transfer: CUBE_T, target: 2, pre: [], status: 'live' }),
-  S({ id: 's.rotY', strand: 'cubes', name: 'Same build, turned round', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'rotY', formats: ['rotate'], transfer: [{ mech: 'choice-path', format: 'builds' }, { mech: 'logic-lock', format: 'door' }], target: 3, pre: [], status: 'live' }),
-  S({ id: 's.top', strand: 'cubes', name: 'Bird’s-eye view', realm: 'y3-aut', cls: 'procedural', gen: 'top', formats: ['top'], transfer: [{ mech: 'logic-lock', format: 'door' }, { mech: 'choice-path', format: 'sign' }], target: 3, pre: ['s.count1'], status: 'live' }),
+  S({ id: 's.rotY', strand: 'cubes', name: 'Same build, turned round', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'rotY', formats: ['rotate'], transfer: SHAPE_T, target: 3, pre: [], status: 'live' }),
+  S({ id: 's.top', strand: 'cubes', name: 'Bird’s-eye view', realm: 'y3-aut', cls: 'procedural', gen: 'top', formats: ['top'], transfer: SHAPE_T, target: 3, pre: ['s.count1'], status: 'live' }),
   S({ id: 's.count2', strand: 'cubes', name: 'Counting hidden blocks', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'count2', formats: ['count'], transfer: CUBE_T, target: 3, pre: ['s.count1'], status: 'live' }),
-  S({ id: 's.rot3', strand: 'cubes', name: 'Same build, any turn', realm: 'y3-aut', cls: 'procedural', gen: 'rot3', formats: ['rotate'], transfer: [{ mech: 'choice-path', format: 'builds' }, { mech: 'logic-lock', format: 'door' }], target: 3, pre: ['s.rotY'], status: 'live' }),
+  S({ id: 's.rot3', strand: 'cubes', name: 'Same build, any turn', realm: 'y3-aut', cls: 'procedural', gen: 'rot3', formats: ['rotate'], transfer: SHAPE_T, target: 3, pre: ['s.rotY'], status: 'live' }),
   S({ id: 's.count3', strand: 'cubes', name: 'Counting tall builds', realm: 'y3-aut', cls: 'procedural', gen: 'count3', formats: ['count'], transfer: CUBE_T, target: 3, pre: ['s.count2'], status: 'live' }),
   // ---- Year 3 Autumn non-verbal reasoning ----
-  S({ id: 's.nvrSeries', strand: 'nvr', name: 'Shape patterns: what comes next?', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'nvrSeries', formats: ['nvr-series'], transfer: NVR_T, target: 3, pre: [], status: 'ready' }),
-  S({ id: 's.nvrOdd', strand: 'nvr', name: 'Shape odd one out', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'nvrOdd', formats: ['nvr-odd'], transfer: NVR_T, target: 3, pre: [], status: 'ready' }),
+  S({ id: 's.nvrSeries', strand: 'nvr', name: 'Shape patterns: what comes next?', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'nvrSeries', formats: ['nvr-series'], transfer: SHAPE_T, target: 3, pre: [], status: 'ready' }),
+  S({ id: 's.nvrOdd', strand: 'nvr', name: 'Shape odd one out', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'nvrOdd', formats: ['nvr-odd'], transfer: SHAPE_T, target: 3, pre: [], status: 'ready' }),
 
   // ================= WORD (Word portals arrive in R0.9) =================
   E({ id: 'e.spell34', strand: 'spelling', name: 'Year 3/4 spelling words', realm: 'y3-aut', cls: 'fact', core: true, gen: 'spell34', formats: ['spell'], transfer: [], target: 3, pre: [], status: 'ready' }),

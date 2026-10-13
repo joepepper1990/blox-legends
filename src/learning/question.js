@@ -8,6 +8,8 @@ import { GEN } from './gen/index.js';
 import { verify } from './check/index.js';
 import { fpOf, FPV } from './fp.js';
 import { pick, lvlToBand } from './gen/util.js';
+import { FORMATS } from './formats.js';
+import { makeTransfer } from './gen/transfer.js';
 
 export function generatorFor(skillId) {
   const skill = SKILL_BY_ID[skillId];
@@ -17,9 +19,10 @@ export function generatorFor(skillId) {
   return { skill, gen };
 }
 
-export function formatsAt(skillId, band) {
+// Practice formats a skill can be asked in at this band (and option count).
+export function formatsAt(skillId, band, count = 3) {
   const { skill, gen } = generatorFor(skillId);
-  return gen.formatsAt(skill, band).filter((f) => skill.formats.includes(f));
+  return gen.formatsAt(skill, band, count).filter((f) => skill.formats.includes(f));
 }
 
 // Fact and authored skills list their items; procedural ones don't.
@@ -43,10 +46,12 @@ export function makeItem(skillId, { band = 3, format, count = 3, rng = Math.rand
   const { skill, gen } = generatorFor(skillId);
   let last = null;
   for (let i = 0; i < tries; i++) {
-    const fmt = format || pick(rng, formatsAt(skillId, band));
+    const fmt = format || pick(rng, formatsAt(skillId, band, count));
     let q;
     try {
-      q = finish(gen.make(skill, { band, format: fmt, count, rng, item }));
+      const opts = { band, format: fmt, count, rng, item };
+      // A format that isn't one of the skill's own is a transfer context.
+      q = finish(FORMATS[fmt] && !skill.formats.includes(fmt) ? makeTransfer(skill, gen, opts) : gen.make(skill, opts));
     } catch (e) {
       last = e;
       continue;

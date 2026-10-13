@@ -13,15 +13,20 @@ export function solveNumber(q) {
   const p = q.prompt;
   let m;
 
-  // Written column sums: the lines are the sum.
+  // Written column sums: the lines are the sum, and the spoken/written
+  // question must say the same sum.
   if (q.display?.column) {
     const [top, bottom] = q.display.column;
     const op = bottom.trim()[0];
     const a = n(top);
     const b = n(bottom.trim().slice(1));
     const ans = op === '+' ? a + b : a - b;
+    const said = solveEquation(p, [ans]);
+    if (!said || !said[0]) return { correct: [], reason: 'the question and the written sum disagree' };
     return { correct: idxWhere((v) => v === ans) };
   }
+  // Story problems: the words shown must be the words asked.
+  if (q.display?.prose && q.display.prose.join(' ') !== p) return { correct: [], reason: 'the story shown and the question differ' };
   // Equations with one "?".
   if (/=/.test(p) && /\?/.test(p) && /^[\d\s,×÷+−?=()]+$|^Double|^Half of/.test(p)) {
     const ok = solveEquation(p, nums);
@@ -70,14 +75,16 @@ export function solveNumber(q) {
   return null;
 }
 
-const ADD = /\b(altogether|in total|more arrive|join|joins|another|gets? \d+ more|buys? \d+ more|finds? \d+ more|added|add|how many now)\b/i;
-const SUB = /\b(left|fewer|less|eats?|gives? away|loses?|lost|spends?|flew away|fly away|sold|fall off|fell off|how many more|difference|remain)\b/i;
+const ADD = /\b(altogether|in total|more arrive|join|joins|another|gets? \d+ more|buys? \d+ more|finds? \d+ more|adds? \d+ more|added|how many now)\b/i;
+const SUB = /\b(left|fewer|less|eats?|gives? away|loses?|lost|spends?|flew away|fly away|sold|fall off|fell off|how many more|difference|remain|takes? out)\b/i;
 const MUL = /\b(each|every|groups? of|rows? of|lots of|times|packs? of|boxes of|bags of)\b/i;
 const DIV = /\b(shared? (equally|between|into)|split|share|equal groups|how many groups|into groups|per)\b/i;
 
 function solveStory(q, nums) {
   const text = q.display?.prose ? q.display.prose.join(' ') : q.prompt;
   const values = (text.match(/\d+/g) || []).map(Number);
+  if (values.length === 1 && /\btwice as many\b/i.test(text)) return { correct: nums.map((v, i) => (v === values[0] * 2 ? i : -1)).filter((i) => i >= 0) };
+  if (values.length === 1 && /\bhalf as many\b/i.test(text)) return { correct: nums.map((v, i) => (v === values[0] / 2 ? i : -1)).filter((i) => i >= 0) };
   if (values.length !== 2) return { correct: [], reason: 'story needs exactly two numbers' };
   const [a, b] = values;
   // Sharing and grouping first: "shared equally between 4" etc.

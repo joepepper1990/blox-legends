@@ -23,7 +23,7 @@ const SEEDS = Number(process.env.Q_SEEDS || 25);
 // Option counts a skill can be asked with: its home mechanic and wherever it
 // travels for transfer.
 function countsFor(s) {
-  const mechs = [ZONES[s.zone].home, ...s.transfer.map((t) => t.mech)].filter(Boolean);
+  const mechs = [s.home || ZONES[s.zone].home, ...s.transfer.map((t) => t.mech)].filter(Boolean);
   const set = new Set();
   for (const m of mechs.length ? mechs : ['logic-lock']) {
     const [lo, hi] = MECHANICS[m].options;
@@ -37,7 +37,7 @@ for (const s of BUILT) {
     let made = 0;
     for (let band = 1; band <= 5; band++)
       for (const count of countsFor(s))
-        for (const format of formatsAt(s.id, band))
+        for (const format of formatsAt(s.id, band, count))
           for (let seed = 1; seed <= SEEDS; seed++) {
             const rng = seeded(seed * 7919 + band * 131 + count * 31 + format.length * 7);
             const q = finish(GEN[s.gen].make(s, { band, format, count, rng }));
@@ -50,6 +50,21 @@ for (const s of BUILT) {
             made++;
           }
     assert.ok(made > 0);
+  });
+}
+
+for (const s of BUILT.filter((x) => x.transfer.length)) {
+  test(`${s.id}: transfer questions are right too`, () => {
+    for (const t of s.transfer) {
+      const [lo, hi] = MECHANICS[t.mech].options;
+      for (let band = 1; band <= 5; band++)
+        for (let count = lo; count <= hi; count++)
+          for (let seed = 1; seed <= 8; seed++) {
+            const q = makeItem(s.id, { band, format: t.format, count, rng: seeded(seed * 53 + band * 7 + count) });
+            assert.equal(q.format, t.format);
+            assert.equal(q.options.length, count);
+          }
+    }
   });
 }
 
@@ -133,9 +148,10 @@ test('checkers catch a wrong answer, a changed question and a broken option', ()
       const o = b.options[b.answerIndex];
       if (q.kind === 'rotate') o.cubes = o.cubes.map(([x, y, z]) => [-x, y, z]);
       else if (q.kind === 'top') o.grid = o.grid.map((r) => r.map((v) => 1 - v));
-      else o.label = `${o.label}9`;
+      else o.label = `Q${o.label}`;
       if (!(q.kind === 'top' && !o.grid.flat().some(Boolean))) assert.equal(verify(b).ok, false, `${s.id}: broken right answer not caught`);
-      if (!q.kind && /\d/.test(q.prompt)) {
+      // (Comparisons are skipped: nudging one number rarely changes which is bigger.)
+      if (!q.kind && /\d/.test(q.prompt) && !q.format.startsWith('cmp')) {
         const c = structuredClone(q);
         c.prompt = q.prompt.replace(/\d+/, (d) => String(Number(d) + 3));
         stems++;

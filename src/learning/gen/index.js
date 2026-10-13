@@ -5,6 +5,7 @@
 import * as facts from './number-facts.js';
 import * as verbal from './verbal.js';
 import * as shape from './shape.js';
+import * as y3 from './number-y3.js';
 
 export const GEN = {
   table: facts.table,
@@ -28,6 +29,17 @@ export const GEN = {
   rotY: shape.rotY,
   rot3: shape.rot3,
   top: shape.top,
+  pv3: y3.pv3,
+  cmp3: y3.cmp3,
+  more: y3.more,
+  steps: y3.steps,
+  add3m: y3.add3m,
+  sub3m: y3.sub3m,
+  addcol: y3.addcol,
+  subcol: y3.subcol,
+  inverse: y3.inverse,
+  double2: y3.double2,
+  wp1: y3.wp1,
 };
 
 export function addGenerators(more) {

@@ -55,6 +55,21 @@ export function solveShape(q) {
     if (!supported(q.target)) return { correct: [], reason: 'a block is floating, so the count is a guess' };
     return { correct: q.options.map((o, i) => (Number(o.label) === q.target.length ? i : -1)).filter((i) => i >= 0) };
   }
+  if (q.kind === 'tenframe' || q.kind === 'complete') {
+    // Blocks sit inside a frame (w × d × h); the answer is the space left.
+    const { w, d, h } = q.frame || {};
+    if (!(w > 0 && d > 0 && h > 0)) return { correct: [], reason: 'no frame size' };
+    const inside = q.target.every(([x, y, z]) => x >= 0 && x < w && z >= 0 && z < d && y >= 0 && y < h);
+    if (!inside || !supported(q.target)) return { correct: [], reason: 'blocks outside the frame or floating' };
+    if (new Set(q.target.map((c) => c.join(','))).size !== q.target.length) return { correct: [], reason: 'two blocks in one place' };
+    if (q.kind === 'complete' && !/(\d+) × (\d+) × (\d+)/.test(q.prompt)) return { correct: [], reason: 'the block size is not shown' };
+    if (q.kind === 'complete') {
+      const [, pw, pd, ph] = /(\d+) × (\d+) × (\d+)/.exec(q.prompt).map(Number);
+      if (pw !== w || pd !== d || ph !== h) return { correct: [], reason: 'the question shows a different size' };
+    }
+    const left = w * d * h - q.target.length;
+    return { correct: q.options.map((o, i) => (Number(o.label) === left ? i : -1)).filter((i) => i >= 0) };
+  }
   if (q.kind === 'rotate') {
     const group = q.skill === 's.rotY' ? Y_SPINS : ALL_ROTATIONS;
     const shown = q.options.map((o) => apply(o.rot, o.cubes));
