@@ -464,3 +464,49 @@ test('the grown-ups see each skill’s stage, the Term Tracker, and can set the 
   assert.equal(await page.evaluate(() => __game.save.data.prefs.cohort), 2025);
   assert.deepEqual(page.errors, []);
 });
+
+test('an iPad with R0 progress opens 0.3.0: everything kept, old skills checked first', async () => {
+  const { readFileSync } = await import('node:fs');
+  const dump = JSON.parse(readFileSync(new URL('../fixtures/r0/r0-idb.json', import.meta.url), 'utf8'));
+  const manifest = JSON.parse(readFileSync(new URL('../fixtures/r0/manifest.json', import.meta.url), 'utf8'));
+  const { page } = await newPage();
+  // seed IndexedDB exactly as the R0 app left it, without starting the game
+  await page.goto(`${base}version.json`);
+  await page.evaluate(async (d) => {
+    const { DB } = await import('./src/data/db.js');
+    const db = new DB(indexedDB);
+    await db.open();
+    await db.tx(['meta', 'state', 'ops'], 'readwrite', (t) => {
+      for (const m of d.meta) t.objectStore('meta').put(m);
+      t.objectStore('state').put(d.state);
+      for (const o of d.ops) t.objectStore('ops').put(o);
+    });
+    db.db.close();
+  }, dump);
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  const info = await page.evaluate(async () => {
+    const s = __game.save;
+    const snaps = await s.listSnapshots();
+    const sk = s.data.learn.sk;
+    return {
+      coins: s.data.coins,
+      v: s.data.learn.v,
+      unverified: Object.keys(sk).filter((id) => sk[id].uv),
+      safety: snaps.some((x) => x.id.startsWith('safety-upgrade-')),
+      legacy: !!s.data.learn.mig?.legacy?.skills,
+    };
+  });
+  assert.equal(info.coins, manifest.r0.coins);
+  assert.equal(info.v, 2);
+  assert.ok(info.unverified.length > 0, 'skills mastered in the old game wait for a check');
+  assert.ok(info.safety && info.legacy, 'a safety copy and the raw old records are kept');
+  // on the Glass Bridge, a carried-over skill is checked first
+  await playRun(page, 'obby');
+  const checks = await page.evaluate(async () => {
+    const ops = await __game.save.getOps();
+    return ops.flatMap((o) => o.p?.a || []).concat(__game.save.pending).filter((a) => a.pu === 'check').map((a) => a.s);
+  });
+  assert.ok(checks.length >= 3, `checks asked: ${checks.join(' ')}`);
+  assert.deepEqual(page.errors, []);
+});
