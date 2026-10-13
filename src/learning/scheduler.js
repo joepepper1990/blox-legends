@@ -1,8 +1,9 @@
 // What to ask next (plan §6.3, §7). For one run in one world (a mechanic):
 //
 //   follow-up   at most 1: a matched question 1–3 items after a mistake
-//   check       a 3-item retention check that is due (verify carried-over
-//               skills first)
+//   check       a 3-item retention check that is due; a skill carried over
+//               from the old game is always checked first, at the start of
+//               a run
 //   recheck     at most 1: yesterday's misconception, asked again
 //   review      at most 2: due fact or authored items of skills already
 //               Accurate
@@ -121,6 +122,15 @@ export function planNext(ctx) {
   }
   // 2. a check already under way
   if (session.check && session.check.left > 0) return checkPlan(ctx, c, session.check.s);
+  // 2b. a skill carried over from the old game is confirmed before anything
+  //     else (it counts as unverified until then)
+  if (q.check === 0) {
+    const verify = c.here.find((s) => c.sk(s.id)?.chk?.step === 0 && checkDue(c.sk(s.id), ctx.day));
+    if (verify) {
+      session.check = { s: verify.id, left: RULES.checkItems - (c.sk(verify.id).chk.res?.length || 0) };
+      return checkPlan(ctx, c, verify.id);
+    }
+  }
   // 3. something due, more often when he's finding things hard
   const front = frontier(ctx);
   const zones = [...new Set(c.here.map((s) => s.zone))];

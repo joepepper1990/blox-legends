@@ -69,8 +69,12 @@ test('prerequisites come first: the 5s wait for the 10s', () => {
 
 test('a skill carried over from v1 is checked first, and the check is three questions', () => {
   const v1 = JSON.parse(readFileSync(new URL('./fixtures/r0/v1-save.json', import.meta.url), 'utf8')).learn;
+  // whatever the dice say: try many runs
+  for (let seed = 1; seed <= 40; seed++) {
+    const c2 = ctxFor('choice-path', upgradeLearn(v1, DATE.getTime()), { seed });
+    assert.equal(nextItem(c2).plan.pu, 'check', `seed ${seed}`);
+  }
   const ctx = ctxFor('choice-path', upgradeLearn(v1, DATE.getTime()));
-  ctx.rng = () => 0; // "due first"
   const got = play(ctx, 3);
   assert.deepEqual(got.map((g) => g.plan.pu), ['check', 'check', 'check']);
   assert.equal(new Set(got.map((g) => g.q.skill)).size, 1);
