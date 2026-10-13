@@ -11,7 +11,6 @@ import { PHYS, FixedClock } from './engine/physics.js';
 import { Bolt } from './engine/bolt.js';
 import { gradientTexture } from './engine/textures.js';
 import { levelInfo, today } from './save.js';
-import { fingerprint } from './learning/fingerprint.js';
 import { Mastery } from './learning/index.js';
 import { openShop } from './shop.js';
 import { openParent } from './parent.js';
@@ -343,7 +342,7 @@ export class Game {
     this.save.dirty = true;
     const coins = correct ? (firstTry ? 5 : 1) : 0;
     // Every attempt goes into the append-only learning log (plan §10.2).
-    this.save.recordAttempt({ s: q.skill, c: correct ? 1 : 0, f: firstTry ? 1 : 0, ms: Math.round(ms || 0), fp: fingerprint(q), coins });
+    this.save.recordAttempt({ s: q.skill, c: correct ? 1 : 0, f: firstTry ? 1 : 0, ms: Math.round(ms || 0), fp: q.fp, fpv: q.fpv, k: q.itemKey, fm: q.format, b: q.band, coins });
     if (correct) {
       this.audio.correct();
       this.bolt.cheer();

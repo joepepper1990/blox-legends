@@ -191,7 +191,7 @@ export class Obby extends World {
     const right = row.panels[row.q.answerIndex];
     right.mat.emissive.setHex(0x22b06a);
     right.mat.emissiveIntensity = 0.6;
-    g.ui.say(`${row.q.prompt.replace('?', row.q.options[row.q.answerIndex].label)}. ${row.q.hint.text}`, {
+    g.ui.say(`${row.q.solved}. ${row.q.hint.text}`, {
       speakText: `Oops! ${row.q.hint.text}`,
     });
   }

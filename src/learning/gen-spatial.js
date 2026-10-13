@@ -131,7 +131,7 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 
 // ---------- "Which build is the same, just turned?" ----------
 function genRotate(skill, lvl, count, rng, yOnly) {
-  const n = yOnly ? (lvl < 0.5 ? 4 : 5) : lvl < 0.5 ? 5 : 6;
+  const n = yOnly ? (lvl < 0.6 ? 5 : 6) : lvl < 0.5 ? 5 : 6;
   // "Turned round" questions only ever spin about the vertical axis, so shapes
   // count as the same only if a spin (not a flip) lines them up.
   const rots = yOnly ? ROTS_Y : ROTATIONS;
@@ -213,12 +213,22 @@ function genCount(skill, lvl, count, rng, mode) {
   let cubes;
   let layers;
   if (mode === 1) {
-    const n = randInt(rng, 3, lvl < 0.5 ? 6 : 9);
+    const n = randInt(rng, 3, lvl < 0.3 ? 6 : lvl < 0.7 ? 8 : 10);
     cubes = randomPolycube(rng, n, 4, true);
     layers = [cubes.length];
   } else {
-    const [w, d, maxH] = mode === 2 ? [pick(rng, [2, 3]), 2, 2] : [3, pick(rng, [2, 3]), 3];
-    const h = stadiumHeights(rng, w, d, maxH);
+    const sizes =
+      mode === 2
+        ? [[2, 2, 2], [3, 2, 2], [4, 2, 2], [2, 3, 2], [3, 3, 2], ...(lvl >= 0.6 ? [[3, 2, 3], [2, 3, 3]] : [])]
+        : [[3, 2, 3], [3, 3, 3], [4, 2, 3], ...(lvl >= 0.6 ? [[4, 3, 3], [3, 3, 4], [4, 2, 4]] : [])];
+    let h = null;
+    let maxH = 0;
+    for (let tries = 0; !h && tries < 20; tries++) {
+      const [w, d, top] = pick(rng, sizes);
+      maxH = top;
+      h = stadiumHeights(rng, w, d, top);
+    }
+    if (!h) throw new Error('Could not build a counting build');
     cubes = heightsToCubes(h);
     layers = [];
     for (let y = 0; y < maxH; y++) {
@@ -345,4 +355,5 @@ export function genSpatial(skillId, lvl, count, rng) {
   }
 }
 
-export const _internal = { footprint, gridKey, connected, heightsToCubes };
+export const _internal = { footprint, gridKey, connected, heightsToCubes, flipLR, flipFB, rot90 };
+export { genCount, genRotate, genTop };
