@@ -778,6 +778,21 @@ button {
 .tag.review {
   color: var(--accent);
 }
+.tag.introduced {
+  color: #6b5bd6;
+}
+.tag.practising {
+  color: #c27400;
+}
+.tag.accurate {
+  color: #1f7fb8;
+}
+.tag.applied {
+  color: #0f8f86;
+}
+.tag.retained {
+  color: #2f8f3a;
+}
 .pin-pad {
   display: grid;
   grid-template-columns: repeat(3, 80px);

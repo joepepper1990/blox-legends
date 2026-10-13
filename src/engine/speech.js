@@ -38,20 +38,36 @@ export class Speech {
       .replace(/\s+/g, ' ');
   }
 
-  speak(text, { force = false } = {}) {
-    if (!this.supported || (!this.enabled && !force) || !text) return;
+  // `onend` runs when the voice has finished (or straight away if nothing is
+  // read), so the game knows when a question has been fully heard.
+  speak(text, { force = false, onend = null } = {}) {
+    if (!this.supported || (!this.enabled && !force) || !text) {
+      onend?.();
+      return;
+    }
     try {
       const s = window.speechSynthesis;
       s.cancel();
       const u = new SpeechSynthesisUtterance(this.clean(text));
+      if (onend) {
+        u.onend = () => onend();
+        u.onerror = () => onend();
+      }
       if (this.voice) u.voice = this.voice;
       u.lang = this.voice?.lang || 'en-GB';
       u.rate = 0.92;
       u.pitch = 1.05;
       s.speak(u);
     } catch {
-      /* speech is a nice-to-have */
+      onend?.(); // speech is a nice-to-have
     }
+  }
+
+  // Roughly how long reading `text` takes (a fallback if onend never comes).
+  estimateMs(text) {
+    if (!this.supported || !this.enabled || !text) return 0;
+    const words = this.clean(text).trim().split(/\s+/).length;
+    return Math.round((words * 400) / 0.92) + 300;
   }
 
   stop() {

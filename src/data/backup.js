@@ -12,10 +12,13 @@
 
 import { defaults, mergeDeep, levelInfo } from '../save.js';
 import { sha256Hex, toBase64, fromBase64, deriveKey } from './crypto.js';
-import { APP_VERSION } from '../version.js';
+import { APP_VERSION, DATA_SCHEMA } from '../version.js';
+import { upgradeData, needsUpgrade } from './upgrade.js';
 
 export const BACKUP_FORMAT = 'bloxbak';
-export const BACKUP_FV = 1;
+// 2: learning state in the new learner model (DATA_SCHEMA 3). Version 1
+// files still restore (they're upgraded); older apps refuse version 2.
+export const BACKUP_FV = 2;
 
 // JSON with sorted keys, so the same data always hashes the same.
 export function canonical(value) {
@@ -50,9 +53,10 @@ export function splitSections(data, ops, meta = {}) {
 }
 
 export function joinSections(s) {
+  const learn = upgradeData({ learn: s.derived.learn }).learn;
   return mergeDeep(defaults(), {
     ...s.other,
-    learn: s.derived.learn,
+    learn,
     ...s.economy,
     ...s.records,
     settings: s.settings,
@@ -71,7 +75,7 @@ export function summarize(sections, created = Date.now()) {
     level: levelInfo(e.xp || 0).level,
     owned: (e.owned || []).length,
     answered: r.totals?.answered || 0,
-    skills: Object.keys(sections.derived.learn?.skills || {}).length,
+    skills: Object.keys(sections.derived.learn?.sk || sections.derived.learn?.skills || {}).length,
     ops: sections.learning.length,
   };
 }
@@ -159,6 +163,7 @@ export async function createBackup(store, { passphrase } = {}) {
   const created = Date.now();
   const header = {
     app: APP_VERSION,
+    schema: DATA_SCHEMA,
     created,
     profile: { id: store.profileId, created: store.meta.profile?.created },
     device: store.deviceId,
@@ -183,6 +188,7 @@ export async function restoreBackup(store, decoded) {
     ops: decoded.sections.learning,
     migrations: decoded.sections.meta.migrations,
     profile: decoded.header.profile,
+    upgraded: needsUpgrade({ learn: decoded.sections.derived.learn }),
   });
 }
 

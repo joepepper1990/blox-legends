@@ -55,7 +55,7 @@ test('the v1 save on this iPad is brought over once and left in place', async ()
   const s = await Store.open(e);
   assert.equal(s.data.coins, 82);
   assert.ok(s.data.owned.includes('hat-cap'));
-  assert.equal(s.data.learn.skills['m.bond10'].n, 14);
+  assert.equal(s.data.learn.sk['m.bond10'].n, 14);
   assert.equal(s.data.settings.pin, undefined, 'plain PIN removed from the game data');
   assert.ok(s.hasPin());
   assert.equal(await s.verifyPin('1234'), true);

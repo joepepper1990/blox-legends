@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PHYS, makeBody, stepBody, FixedClock, jumpEnvelope } from '../src/engine/physics.js';
 import { OBBY, rowZ, finishZ, panelX } from '../src/worlds/obby-layout.js';
+import { MECHANICS } from '../src/mechanics/caps.js';
 
 const boxAt = (cx, top, cz, w, h, d) => ({
   active: true,
@@ -42,6 +43,7 @@ function cross({ colliders, path }, fps) {
   let jumpQueued = false;
   const takeJump = () => (jumpQueued ? ((jumpQueued = false), true) : false);
   const landings = [];
+  const arrivals = []; // seconds at which each glass on the path is reached
   for (let frame = 0; frame < fps * 120; frame++) {
     const support = body.onGround ? body.ground : null;
     if (support && !linedUp) {
@@ -66,9 +68,10 @@ function cross({ colliders, path }, fps) {
         if (body.ground === path[target]) {
           target += 1;
           linedUp = false;
+          arrivals.push(frame / fps);
         }
         else if (body.ground !== path[target - 1]) return { ok: false, why: `landed on the wrong glass before target ${target}` };
-        if (target === path.length) return { ok: true, seconds: frame / fps, landings };
+        if (target === path.length) return { ok: true, seconds: frame / fps, landings, arrivals };
       }
       if (body.pos.y < OBBY.KILL_Y) return { ok: false, why: `fell before target ${target}` };
     }
@@ -124,4 +127,19 @@ test('every Glass Bridge jump fits inside the jump range with a 15% margin', () 
     }
   }
   assert.ok(worst <= reach, `widest gap ${worst.toFixed(2)} > safe reach ${reach.toFixed(2)}`);
+});
+
+// Rapid guesses on the Glass Bridge (plan §8.1): reaching the next glass takes
+// time, so an answer only counts as a rapid guess if it came faster than the
+// quickest possible move. The allowance must never be longer than that move.
+test('the Glass Bridge move allowance is no longer than the quickest row-to-row move', () => {
+  let quickest = Infinity;
+  for (const fps of [30, 60, 120])
+    for (const [n, pick] of Object.values(ROUTES)) {
+      const r = cross(course(n, pick), fps);
+      for (let i = 2; i < r.arrivals.length - 1; i++) quickest = Math.min(quickest, r.arrivals[i] - r.arrivals[i - 1]);
+    }
+  const allowance = MECHANICS['choice-path'].moveAllowanceMs / 1000;
+  assert.ok(allowance <= quickest, `allowance ${allowance}s > quickest move ${quickest.toFixed(2)}s`);
+  assert.ok(allowance >= quickest * 0.6, `allowance ${allowance}s is far below the quickest move ${quickest.toFixed(2)}s`);
 });

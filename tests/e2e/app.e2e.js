@@ -45,8 +45,8 @@ test('boots cleanly, plays a Code Vault run and keeps it after a reload', async 
   await playVault(page);
   const afterRun = await saveInfo(page);
   assert.ok(afterRun.coins > before.coins, 'coins earned');
-  const run = afterRun.ops.find((o) => o.k === 'run');
-  assert.ok(run && run.a > 0, 'the run and its attempts are in the learning log');
+  const logged = afterRun.ops.filter((o) => o.k === 'run' || o.k === 'run.part').reduce((n, o) => n + o.a, 0);
+  assert.ok(afterRun.ops.some((o) => o.k === 'run') && logged >= 5, 'the run and its attempts are in the learning log');
 
   await page.reload();
   await ready(page);
@@ -81,8 +81,10 @@ for (const [world, label] of [['obby', 'Glass Bridge'], ['lab', 'Build Lab']]) {
     await playRun(page, world);
     const after = await saveInfo(page);
     assert.ok(after.coins > before.coins, 'coins earned');
-    const run = after.ops.find((o) => o.k === 'run');
-    assert.ok(run && run.a > 0, 'run logged with its attempts');
+    // answers are logged as the run goes (run.part) and when it ends (run)
+    const logged = after.ops.filter((o) => o.k === 'run' || o.k === 'run.part').reduce((n, o) => n + o.a, 0);
+    assert.ok(after.ops.some((o) => o.k === 'run'), 'run logged');
+    assert.ok(logged >= (world === 'obby' ? 8 : 5), `every answer logged (${logged})`);
     const stars = await page.evaluate((w) => __game.save.data.day.stars[w], world);
     assert.equal(stars, true, 'daily star earned');
     assert.deepEqual(page.errors, []);
@@ -297,4 +299,80 @@ test('works offline after the first visit, and updates only when tapped in the h
   swVersionOverride = null;
   assert.deepEqual(page.errors.filter((e) => !/ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(e)), []);
   await ctx.close();
+});
+
+test('the learning state can be rebuilt exactly from the log', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await playRun(page, 'vault');
+  await playRun(page, 'lab');
+  const same = await page.evaluate(async () => {
+    const { rebuildLearn } = await import('./src/data/replay.js');
+    await __game.save.write();
+    await __game.save.chain;
+    const rebuilt = rebuildLearn(await __game.save.getOps(), __game.reg);
+    const live = __game.save.data.learn;
+    const sk = Object.values(live.sk);
+    return { equal: JSON.stringify(rebuilt) === JSON.stringify(live), skills: sk.length, answers: sk.reduce((n, s) => n + s.n, 0) };
+  });
+  assert.ok(same.answers >= 10, `answers recorded: ${same.answers}`);
+  assert.equal(same.equal, true);
+});
+
+test('rapid guesses earn nothing, and three in a row bring a short pause', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await page.evaluate(() => __game.go('vault'));
+  await page.waitForFunction(() => __game.world.test.state().hasQ);
+  const coins0 = await page.evaluate(() => __game.save.data.coins);
+  for (let i = 0; i < 3; i++) {
+    await page.waitForFunction(() => __game.world.test.state().hasQ && !__game.paused());
+    await page.evaluate(() => __game.world.test.answer(true, { think: 50 }));
+    await page.waitForTimeout(900);
+  }
+  const after = await page.evaluate(() => ({
+    coins: __game.save.data.coins,
+    paused: __game.paused(),
+    frozen: __game.player.frozen,
+    rapid: __game.save.pending.concat([]).filter((a) => a.rg === 1).length,
+    bubble: document.querySelector('.bolt-bubble, .say, .bubble')?.textContent || '',
+  }));
+  assert.equal(after.coins, coins0, 'no coins for rapid guesses');
+  assert.ok(after.paused && after.frozen, 'paused');
+  assert.match(after.bubble, /Read each question/);
+  // a thought-through answer after the pause earns again
+  await page.waitForFunction(() => !__game.paused(), null, { timeout: 5000 });
+  await page.waitForFunction(() => __game.world.test.state().hasQ);
+  await page.evaluate(() => __game.world.test.answer(true, { think: 4000 }));
+  assert.ok((await page.evaluate(() => __game.save.data.coins)) > coins0);
+});
+
+test('a wrong answer explains the exact mistake when it is a known one', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await page.evaluate(() => __game.go('lab'));
+  let checked = 0;
+  for (let i = 0; i < 5 && !checked; i++) {
+    await page.waitForFunction(() => __game.world.test.state().hasQ);
+    const res = await page.evaluate(() => {
+      const pz = __game.world.puzzle;
+      const k = pz.q.options.findIndex((o, i) => i !== pz.q.answerIndex && o.mis);
+      if (k < 0) return null;
+      pz.q.shownAt = performance.now() - 4000;
+      __game.world.choose(k);
+      return pz.q.explain[pz.q.options[k].mis];
+    });
+    if (res) {
+      await page.waitForTimeout(300);
+      const bubble = await page.evaluate(() => document.querySelector('.bolt-bubble, .say, .bubble')?.textContent || '');
+      assert.ok(bubble.includes(res.slice(0, 20)), `"${bubble}" should explain "${res}"`);
+      checked++;
+    }
+    await page.evaluate(() => __game.world.test.answer(true));
+    await page.waitForTimeout(1900);
+  }
+  assert.equal(checked, 1, 'found a question with a known mistake');
 });

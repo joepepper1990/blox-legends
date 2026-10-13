@@ -23,7 +23,7 @@ import { SKILLS, SKILL_BY_ID, ZONES } from './skills.js';
 import { GEN } from './gen/index.js';
 import { makeItem, formatsAt, canAsk, itemsOf } from './question.js';
 import { inPartition, inReserve } from './fp.js';
-import { FORMATS } from './formats.js';
+import { FORMATS, displayOf } from './formats.js';
 import { MECHANICS } from '../mechanics/caps.js';
 import { fitsMechanic } from '../mechanics/fit.js';
 import { openRealms } from './calendar.js';
@@ -38,10 +38,14 @@ const TEMPLATE_MAX = 2; // the same story template at most twice per run
 export const homeOf = (s) => s.home || ZONES[s.zone].home;
 const schedulable = (s, statuses) => statuses.includes(s.status) && !!GEN[s.gen];
 
-export function createSession({ mech, statuses = ['live'], count } = {}) {
+// `count` is the number of options, or a function of the band; `canShow(q)`
+// says whether the world can draw a question (worlds gain display kinds as
+// they're built).
+export function createSession({ mech, statuses = ['live'], count, canShow = null } = {}) {
   return {
     mech,
     statuses,
+    canShow,
     count: count ?? MECHANICS[mech].options[1],
     issued: [], // {s, k, fp, pu, fm, tpl}
     counts: { follow: 0, check: 0, recheck: 0, review: 0, transfer: 0, learn: 0, fill: 0 },
@@ -208,7 +212,7 @@ function transferPlan(ctx, c, want, { otherZones = false } = {}) {
     const sk = learn.sk[s.id];
     if (!sk || !want(sk)) continue;
     for (const t of s.transfer)
-      if (t.mech === session.mech && canAsk(s.id, t.format, sk.b, session.count)) cands.push({ s, t, sk });
+      if (t.mech === session.mech && canAsk(s.id, t.format, sk.b, countAt(session, sk.b)) && showable(session, s.id, t.format, sk.b)) cands.push({ s, t, sk });
   }
   if (!cands.length) return null;
   const { s, t, sk } = cands[Math.floor(rng() * cands.length)];
@@ -245,12 +249,22 @@ function fillerPlan(ctx, c, plan, day) {
   return plan(root, 'fill');
 }
 
+const countAt = (session, band) => (typeof session.count === 'function' ? session.count(band) : session.count);
+
+// Could this world show the skill in this format at all?
+function showable(session, skillId, format, band) {
+  if (!session.canShow) return true;
+  const fmt = FORMATS[format];
+  const kinds = fmt.presentation ? formatsAt(skillId, band).map((f) => FORMATS[f].display) : [fmt.display];
+  return kinds.some((display) => session.canShow({ format, display }));
+}
+
 // ---- making the question ----
 const seenRecently = (seen, fp, day) => seen.has(fp) && day - seen.get(fp) <= SEEN_DAYS;
 
 function pickFactItem(ctx, skill, band, avoid) {
   const { learn, session, day, rng } = ctx;
-  const keys = itemsOf(skill.id, band, session.count) || [];
+  const keys = itemsOf(skill.id, band, countAt(session, band)) || [];
   const recent = new Set(session.issued.slice(-FACT_SPACING).filter((x) => x.s === skill.id).map((x) => x.k));
   const recs = learn.it[skill.id] || {};
   const pool = keys.filter((k) => !recent.has(k) && k !== avoid && !(skill.cls === 'authored' && inReserve(skill.id, k)));
@@ -271,7 +285,7 @@ function itemFor(ctx, plan) {
   // checks on facts use items not asked for the length of the gap
   if (plan.pu === 'check' && skill.cls === 'fact' && plan.gap) {
     const recs = ctx.learn.it[skill.id] || {};
-    const keys = (itemsOf(skill.id, plan.b, ctx.session.count) || []).filter((k) => !recs[k] || ctx.day - recs[k][2] >= plan.gap);
+    const keys = (itemsOf(skill.id, plan.b, countAt(ctx.session, plan.b)) || []).filter((k) => !recs[k] || ctx.day - recs[k][2] >= plan.gap);
     if (keys.length) return keys[Math.floor(ctx.rng() * keys.length)];
   }
   return pickFactItem(ctx, skill, plan.b, plan.avoid);
@@ -283,7 +297,8 @@ export function serve(ctx, plan) {
   const { session, seen, day, rng } = ctx;
   const skill = SKILL_BY_ID[plan.s];
   const mech = session.mech;
-  const counts = [session.count, ...range(MECHANICS[mech].options[0], session.count - 1).reverse()];
+  const top = countAt(session, plan.b);
+  const counts = [top, ...range(MECHANICS[mech].options[0], top - 1).reverse()];
   const tplUsed = (tpl) => !!tpl && session.issued.filter((x) => x.tpl === tpl).length >= TEMPLATE_MAX;
   const fresh = (q) => !seenRecently(seen, q.fp, day) && !session.issued.some((x) => x.fp === q.fp);
   const base = (q) =>
@@ -291,6 +306,7 @@ export function serve(ctx, plan) {
     !(skill.cls === 'procedural' && inPartition(q.fp)) &&
     !(skill.cls === 'authored' && inReserve(skill.id, q.itemKey)) &&
     !tplUsed(q.tpl) &&
+    (!session.canShow || session.canShow({ format: q.format, display: displayOf(q), q })) &&
     q.itemKey !== plan.avoid &&
     (!plan.tm || q.options.some((o) => o.mis === plan.tm) || skill.cls !== 'procedural');
   for (const count of counts) {

@@ -3,6 +3,8 @@
 // (the caller records its migration key).
 
 import { defaults, mergeDeep } from '../save.js';
+import { upgradeLearn } from '../learning/migrate-learn.js';
+import { mergeLearn, upgradeData } from './upgrade.js';
 
 export const V1_LOCAL_KEY = 'blox-legends-save-v1';
 
@@ -16,24 +18,29 @@ export function parseV1Code(code) {
 
 // Has this profile done anything yet? (A fresh profile is simply replaced.)
 export function isFresh(d) {
-  return !d.coins && !d.xp && !(d.totals?.answered > 0) && Object.keys(d.learn?.skills || {}).length === 0;
+  return !d.coins && !d.xp && !(d.totals?.answered > 0) && Object.keys(d.learn?.skills || {}).length === 0 && Object.keys(d.learn?.sk || {}).length === 0;
 }
 
 // Merge rules when the current profile already has progress:
 //   coins and XP add up; owned items combine; best times keep the faster;
 //   each skill keeps the record with more attempts; totals add; settings and
 //   the current look/name stay as they are.
-export function mergeV1(current, v1in) {
-  const v1 = mergeDeep(defaults(), v1in);
+// The old game's learning records are upgraded to the new learner model
+// first (skills it had mastered come across as Accurate, to be checked).
+export function mergeV1(current, v1in, now = Date.now()) {
+  const { learn: v1learn, ...rest } = v1in || {};
+  const v1 = mergeDeep(defaults(), rest);
+  v1.learn = upgradeLearn(v1learn, now);
   if (isFresh(current)) {
-    const out = mergeDeep(defaults(), v1);
+    const out = mergeDeep(defaults(), { ...v1, learn: undefined });
+    out.learn = v1.learn;
     out.name = v1.name || current.name;
     // The parent's choices in the old game (daily limit, read-aloud) carry over.
     out.settings = { ...current.settings, ...v1.settings };
     delete out.settings.pin; // PINs are stored per iPad, hashed (never in game data)
     return out;
   }
-  const out = structuredClone(current);
+  const out = structuredClone(upgradeData(current, now));
   out.coins = (out.coins || 0) + (v1.coins || 0);
   out.xp = (out.xp || 0) + (v1.xp || 0);
   out.owned = [...new Set([...(out.owned || []), ...(v1.owned || [])])];
@@ -42,11 +49,7 @@ export function mergeV1(current, v1in) {
     const b = v1.best[k] || 0;
     out.best[k] = a && b ? Math.min(a, b) : a || b;
   }
-  out.learn ||= { skills: {}, recent: {} };
-  for (const [id, rec] of Object.entries(v1.learn?.skills || {})) {
-    const mine = out.learn.skills[id];
-    if (!mine || (rec.n || 0) > (mine.n || 0)) out.learn.skills[id] = rec;
-  }
+  out.learn = mergeLearn(out.learn, v1.learn);
   for (const k of ['ms', 'answered', 'correct', 'runs']) out.totals[k] = (out.totals[k] || 0) + (v1.totals?.[k] || 0);
   const seen = new Set(out.history.map((h) => h.date));
   for (const h of v1.history || []) if (!seen.has(h.date)) out.history.push(h);

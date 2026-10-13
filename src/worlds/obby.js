@@ -56,6 +56,11 @@ export class Obby extends World {
     this.started = false;
     this.done = false;
     this.startTime = 0;
+    // Three glass panels: two-way guesses are too lucky to count as evidence.
+    this.startRun('obby', 'choice-path', {
+      count: 3,
+      canShow: ({ display, q }) => display.includes('text') && (!q || !q.door),
+    });
     this.buildRow(0);
     this.buildRow(1);
 
@@ -66,15 +71,11 @@ export class Obby extends World {
     this.showQuestion();
   }
 
-  countFor(lvl) {
-    return lvl < 0.6 ? 2 : 3;
-  }
-
   buildRow(i) {
     if (i >= ROWS) return;
     const row = this.rows[i];
     if (row.q) return;
-    row.q = this.nextQuestion('maths', (lvl) => this.countFor(lvl));
+    row.q = this.nextQuestion();
     row.first = true;
     row.asked = 0;
     this.placePanels(row);
@@ -127,16 +128,14 @@ export class Obby extends World {
       this.rowSign.visible = false;
       return;
     }
-    g.ui.question(row.q.prompt, this.spoken(row.q), `Row ${this.current + 1} of ${ROWS}`);
+    this.present(row.q, `Row ${this.current + 1} of ${ROWS}`);
     this.rowSign.material.map.dispose();
     const s = labelSprite(row.q.prompt, 1.6, { size: 80 });
     this.rowSign.material.map = s.material.map;
     this.rowSign.scale.copy(s.scale);
     this.rowSign.position.set(0, 5.2, row.z);
     this.rowSign.visible = true;
-    row.shownAt = performance.now();
     for (const p of row.panels) p.label.visible = true;
-    g.speech.speak(this.spoken(row.q));
   }
 
   landed(c) {
@@ -150,11 +149,10 @@ export class Obby extends World {
       this.startTime = performance.now();
     }
     const g = this.game;
-    const correct = panel.index === row.q.answerIndex;
-    const ms = performance.now() - row.shownAt;
     const at = panel.group.position.clone().add(new THREE.Vector3(0, 1, 0));
-    g.answer(row.q, correct, ms, row.first, at);
-    if (correct) {
+    const r = this.answerQ(row.q, panel.index, { firstTry: row.first, at });
+    if (!r) return;
+    if (r.correct) {
       if (row.first) this.right += 1;
       row.solved = true;
       panel.mat.color.setHex(0x8df0b4);
@@ -174,11 +172,11 @@ export class Obby extends World {
       this.showQuestion();
     } else {
       row.first = false;
-      this.smash(panel, row);
+      this.smash(panel, row, r);
     }
   }
 
-  smash(panel, row) {
+  smash(panel, row, r) {
     const g = this.game;
     panel.broken = true;
     panel.mat.color.setHex(0xffb3a7);
@@ -192,9 +190,8 @@ export class Obby extends World {
     const right = row.panels[row.q.answerIndex];
     right.mat.emissive.setHex(0x22b06a);
     right.mat.emissiveIntensity = 0.6;
-    g.ui.say(`${row.q.solved}. ${row.q.hint.text}`, {
-      speakText: `Oops! ${row.q.hint.text}`,
-    });
+    const lesson = this.lesson(row.q, r);
+    g.ui.say(`${row.q.solved}. ${lesson}`, { speakText: `Oops! ${lesson}` });
   }
 
   onFall() {
@@ -207,7 +204,6 @@ export class Obby extends World {
       row.q.options = shuffleKeep(row.q);
       this.placePanels(row);
       g.ui.question(row.q.prompt, this.spoken(row.q), `Row ${this.current + 1} of ${ROWS} — try again!`);
-      row.shownAt = performance.now();
     }
   }
 
@@ -215,8 +211,9 @@ export class Obby extends World {
   get test() {
     return {
       state: () => ({ current: this.current, total: ROWS, hasQ: !!this.rows[this.current]?.q, done: this.done }),
-      answer: (correct = true) => {
+      answer: (correct = true, { think = 4000 } = {}) => {
         const row = this.rows[this.current];
+        row.q.shownAt = performance.now() - think;
         const panel = row.panels.find((p) => !p.broken && (p.index === row.q.answerIndex) === correct);
         this.landed(panel.collider);
         if (!correct) this.later(200, () => this.onFall());

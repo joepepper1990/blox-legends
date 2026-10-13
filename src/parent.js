@@ -1,6 +1,7 @@
 // Grown-ups area, behind a 4-digit PIN: progress towards the test, every skill's
 // status, the daily time limit, read-aloud, and backup/restore.
-import { AREAS, SKILLS } from './learning/index.js';
+import { AREAS } from './learning/index.js';
+import { skillSummary, areaProgress } from './learning/progress.js';
 import { el } from './engine/ui.js';
 import { createBackup, readEnvelope, decodeBackup, restoreBackup, deliverFile } from './data/backup.js';
 
@@ -84,24 +85,23 @@ export function openParent(game, { grant = false } = {}) {
 
       const dashboard = () => {
         p.classList.add('parent');
-        const m = game.mastery;
+        const learn = game.save.data.learn;
         const mins = Math.round(d.day.ms / 60000);
         const acc = (c, n) => (n ? `${Math.round((c / n) * 100)}%` : '—');
         const days = new Set([...d.history.map((h) => h.date), d.day.ms > 0 ? d.day.date : null].filter(Boolean)).size;
         const areaRows = Object.entries(AREAS)
           .map(([key, a]) => {
-            const pr = m.areaProgress(key);
-            return `<div class="area-row"><b>${a.name}</b><div class="bar"><i style="width:${Math.round(pr.pct * 100)}%"></i></div><span>${pr.mastered}/${pr.total} skills</span></div>`;
+            const pr = areaProgress(learn, key);
+            return `<div class="area-row"><b>${a.name}</b><div class="bar"><i style="width:${Math.round(pr.pct * 100)}%"></i></div><span>${pr.secure}/${pr.total} secure</span></div>`;
           })
           .join('');
         const skillRows = Object.entries(AREAS)
           .map(([key, a]) => {
-            const rows = m
-              .summary()
+            const rows = skillSummary(learn)
               .filter((s) => s.area === key)
               .map(
                 (s) =>
-                  `<tr><td>${s.name}</td><td><span class="tag ${s.status}">${s.status}</span></td><td>${s.rec.n}</td><td>${acc(s.rec.c, s.rec.n)}</td><td>${s.rec.ms ? `${(s.rec.ms / 1000).toFixed(1)}s` : '—'}</td></tr>`,
+                  `<tr><td>${s.name}</td><td><span class="tag ${s.stage}">${s.stage}${s.unverified ? ' (to check)' : ''}${s.refresh ? ' · needs refresh' : ''}</span></td><td>${s.n}</td><td>${acc(s.c, s.n)}</td><td>${s.ms ? `${(s.ms / 1000).toFixed(1)}s` : '—'}</td></tr>`,
               )
               .join('');
             return `<h3>${a.name}</h3><table><tr><th>Skill</th><th>Status</th><th>Tries</th><th>Right first time</th><th>Avg time</th></tr>${rows}</table>`;
@@ -118,7 +118,7 @@ export function openParent(game, { grant = false } = {}) {
           <p class="muted">All time: ${Math.round(d.totals.ms / 60000)} min over ${days} day${days === 1 ? '' : 's'} · ${d.totals.answered} questions · ${acc(d.totals.correct, d.totals.answered)} right first time</p>
           <h3>Skill map</h3>
           ${areaRows}
-          <p class="muted" style="font-size:15px">“Learning” skills are being practised now. “Mastered” ones come back for spaced review so they stick. “Locked” ones open once the skills before them are secure.</p>
+          <p class="muted" style="font-size:15px">Each skill goes: introduced → practising → accurate → applied (used in a new setting) → retained (remembered after a gap) → mastered. Skills from the old game start as “accurate (to check)” until a short check confirms them.</p>
           ${skillRows}
           <h3>Settings</h3>
           <div class="toggle"><span>Daily play limit</span><select class="limit" style="width:auto"></select></div>
@@ -176,9 +176,7 @@ export function openParent(game, { grant = false } = {}) {
           openParent(game);
         };
         const refreshGame = () => {
-          game.mastery.state = game.save.data.learn;
-          game.mastery.state.skills ||= {};
-          game.mastery.state.recent ||= {};
+          // the learner state lives in game.save.data, which the store has replaced
           game.player.setLook(game.save.data.look);
           game.player.setName(game.save.data.name);
           game.refreshHud();
@@ -311,4 +309,3 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
-export { SKILLS };

@@ -190,6 +190,7 @@ export class UI {
   }
 
   hideBolt() {
+    if (this.game.paused?.()) return; // keep the "slow down" message up during the pause
     clearTimeout(this.boltTimer);
     this.bolt.classList.add('hidden');
   }

@@ -66,12 +66,12 @@ export async function startPlaying(page, name = 'Freddie') {
 
 // Play a whole run of a world through its stable test hook (world.test),
 // answering every question correctly, then wait for the results panel.
-export async function playRun(page, world) {
+export async function playRun(page, world, { think = 4000 } = {}) {
   await page.evaluate((w) => __game.go(w), world);
   for (let guard = 0; guard < 600; guard++) {
     const s = await page.evaluate(() => __game.world.test.state());
     if (s.current >= s.total) break;
-    if (s.hasQ) await page.evaluate(() => __game.world.test.answer(true));
+    if (s.hasQ) await page.evaluate((t) => __game.world.test.answer(true, { think: t }), think);
     await page.waitForTimeout(100);
   }
   await page.evaluate(() => __game.world.test.finish());

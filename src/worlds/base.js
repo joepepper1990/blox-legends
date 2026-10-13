@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { disposeTree } from '../engine/blocks.js';
-import { makeQuestion } from '../learning/index.js';
+import { Run } from '../play/run.js';
 
 // Shared plumbing for every world: colliders, triggers, tappable things,
 // and asking the adaptive engine for the next question.
@@ -62,13 +62,40 @@ export class World {
     return id;
   }
 
-  // Next question for this world's area at the child's current level.
-  nextQuestion(area, countFor) {
-    const m = this.game.mastery;
-    const skill = m.pick(area);
-    const lvl = m.level(skill);
-    const count = countFor(lvl, skill);
-    return makeQuestion(skill, lvl, count);
+  // A run in this world: questions come from the scheduler for its mechanic.
+  // `canShow` says what this world can draw; `count` how many answers.
+  startRun(key, mech, opts = {}) {
+    this.run = new Run(this.game, key, mech, opts);
+  }
+
+  nextQuestion() {
+    return this.run.next();
+  }
+
+  // Put the question on screen and read it aloud (timing starts here).
+  present(q, sub) {
+    const spoken = this.spoken(q);
+    this.game.ui.question(q.prompt, spoken, sub);
+    this.run.shown(q, spoken);
+  }
+
+  // Record the chosen option. Returns null if answers are paused.
+  answerQ(q, k, { firstTry, at }) {
+    if (this.game.paused()) return null;
+    const r = this.run.answer(q, k, { firstTry });
+    this.game.feedback(r, at);
+    return r;
+  }
+
+  // The band he's working at for a skill (1–5), for in-world support.
+  bandOf(skill) {
+    return this.game.save.data.learn.sk?.[skill]?.b || 1;
+  }
+
+  // What to say after a wrong answer: the explanation of his exact mistake
+  // when it's a known one, otherwise the hint.
+  lesson(q, r) {
+    return r?.explain || q.hint.text;
   }
 
   // The question read aloud, followed by the choices — so reading the labels

@@ -17,8 +17,13 @@ const num = (v, d = 0) => (Number.isFinite(v) ? v : d);
 
 export const isV1Mastered = (r) => num(r?.n) >= 4 && num(r?.ema, 0.5) >= 0.85;
 
+// Already in the new model? (Old records merged onto new defaults by
+// mistake, with nothing in the new place yet, still count as old.)
+export const isV2Learn = (learn) =>
+  !!learn && learn.v === LEARN_V && !!learn.sk && !(Object.keys(learn.sk).length === 0 && Object.keys(learn.skills || {}).length > 0);
+
 export function upgradeLearn(learn, now = Date.now()) {
-  if (learn && learn.v === LEARN_V && learn.sk) return learn;
+  if (isV2Learn(learn)) return learn;
   const today = dayOf(now);
   try {
     const old = learn && typeof learn === 'object' ? learn : {};

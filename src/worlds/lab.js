@@ -49,6 +49,12 @@ export class Lab extends World {
     this.done = false;
     this.puzzle = null;
     this.startTime = performance.now();
+    // Builds, turned builds and views from above today (times-table arrays
+    // are counting builds too); more kinds arrive with the shared mechanic.
+    this.startRun('lab', 'pattern-plates', {
+      count: (band) => (band <= 2 ? 3 : 4),
+      canShow: ({ format, q }) => (q ? ['count', 'rotate', 'top'].includes(q.kind) : ['count', 'rotate', 'top', 'array'].includes(format)),
+    });
 
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
     g.ui.banner('BUILD LAB', 'Use your eyes and brain!');
@@ -73,11 +79,10 @@ export class Lab extends World {
   newPuzzle() {
     const g = this.game;
     this.clearPuzzle();
-    const q = this.nextQuestion('spatial', (lvl) => (lvl < 0.45 ? 3 : 4));
-    const lvl = g.mastery.level(q.skill);
+    const q = this.nextQuestion();
     const root = new THREE.Group();
     this.root.add(root);
-    const pz = { q, root, pads: [], tapObjs: [], builds: [], first: true, wobble: lvl < 0.6, shownAt: performance.now() };
+    const pz = { q, root, pads: [], tapObjs: [], builds: [], first: true, wobble: this.bandOf(q.skill) <= 3 };
     this.puzzle = pz;
     const n = q.options.length;
 
@@ -162,8 +167,7 @@ export class Lab extends World {
         pz.pads.push(pad);
       });
     }
-    g.ui.question(q.prompt, this.spoken(q), `Puzzle ${this.index + 1} of ${PUZZLES}`);
-    g.speech.speak(this.spoken(q));
+    this.present(q, `Puzzle ${this.index + 1} of ${PUZZLES}`);
   }
 
   choose(k) {
@@ -173,10 +177,10 @@ export class Lab extends World {
     if (pad.state !== 'idle') return;
     const g = this.game;
     const q = pz.q;
-    const correct = k === q.answerIndex;
     const at = pad.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-    g.answer(q, correct, performance.now() - pz.shownAt, pz.first, at);
-    if (correct) {
+    const r = this.answerQ(q, k, { firstTry: pz.first, at });
+    if (!r) return;
+    if (r.correct) {
       if (pz.first) this.right += 1;
       pz.solved = true;
       pad.setState('right');
@@ -193,7 +197,7 @@ export class Lab extends World {
     } else {
       pz.first = false;
       pad.setState('wrong');
-      g.ui.say(q.hint.text);
+      g.ui.say(this.lesson(q, r));
       this.teach(pz);
     }
   }
@@ -237,8 +241,9 @@ export class Lab extends World {
   get test() {
     return {
       state: () => ({ current: this.index, total: PUZZLES, hasQ: !!this.puzzle && !this.puzzle.solved, done: this.done }),
-      answer: (correct = true) => {
+      answer: (correct = true, { think = 4000 } = {}) => {
         const pz = this.puzzle;
+        pz.q.shownAt = performance.now() - think;
         const k = correct ? pz.q.answerIndex : pz.pads.findIndex((p, i) => i !== pz.q.answerIndex && p.state === 'idle');
         this.choose(k);
       },

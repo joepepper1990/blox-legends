@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { splitSections, joinSections, encodeBackup, decodeBackup, readEnvelope, canonical, summarize, BACKUP_FV } from '../src/data/backup.js';
 import { defaults, mergeDeep } from '../src/save.js';
 import { mergeV1, parseV1Code, isFresh } from '../src/data/migrate-v1.js';
+import { freshSkill } from '../src/learning/learner.js';
 
 function sampleData() {
   const d = defaults();
@@ -11,7 +12,7 @@ function sampleData() {
   d.xp = 560;
   d.owned.push('hat-cap', 'shirt-red');
   d.look.hat = 'hat-cap';
-  d.learn.skills['m.x3'] = { n: 12, c: 10, ema: 0.88, streak: 3, box: 2, due: 1, last: 2, ms: 3100 };
+  d.learn.sk['m.x3'] = { ...freshSkill(), n: 12, c: 10, pf: 10, ms: { intro: 20000, prac: 20001 } };
   d.best.obby = 64000;
   d.totals = { ms: 3600000, answered: 300, correct: 250, runs: 30 };
   d.history = [{ date: '2026-10-12', ms: 900000, answered: 80, correct: 70 }];
@@ -113,8 +114,9 @@ test('v1 import into a profile with progress merges without losing anything', ()
   assert.ok(out.owned.includes('hat-crown') && out.owned.includes('hat-cap'));
   assert.equal(out.best.obby, 50000, 'faster time kept');
   assert.equal(out.best.vault, 90000);
-  assert.equal(out.learn.skills['m.x3'].n, 12, 'record with more attempts kept');
-  assert.equal(out.learn.skills['v.code1'].n, 9);
+  assert.equal(out.learn.sk['m.x3'].n, 12, 'record with more attempts kept');
+  assert.equal(out.learn.sk['v.code1'].n, 9);
+  assert.equal(out.learn.sk['v.code1'].ms.prac !== undefined, true, 'old progress comes across as Practising');
   assert.equal(out.totals.answered, 320);
   assert.deepEqual(out.history.map((h) => h.date), ['2026-10-11', '2026-10-12']);
 });

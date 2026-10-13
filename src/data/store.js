@@ -13,6 +13,10 @@ import { LocalSave, readMirror, writeMirror } from './local-save.js';
 import { V1_LOCAL_KEY, parseV1Code, mergeV1, v1Summary } from './migrate-v1.js';
 import { sha256Hex } from './crypto.js';
 import { APP_VERSION, DATA_SCHEMA } from '../version.js';
+import { upgradeData, needsUpgrade } from './upgrade.js';
+
+const SEEN_DAYS = 90;
+const dayNumber = (t = Date.now()) => Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000);
 
 const uuid = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -46,6 +50,8 @@ export class Store {
     this.data = defaults();
     this.dirty = false;
     this.pending = []; // attempts in the current run, not yet logged
+    this.runWorld = '';
+    this.seen = new Map(); // item fingerprint → last day asked (90 days), its own record
     this.chain = Promise.resolve(); // serialises writes
     this.meta = {};
     this.readOnly = false;
@@ -74,10 +80,14 @@ export class Store {
     if (!this.readOnly && mirror?.fallback && mirror.savedAt >= (state?.updatedAt || 0)) {
       await this.adoptFallback(mirror);
     } else if (state?.data) {
-      this.data = mergeDeep(defaults(), state.data);
+      if (needsUpgrade(state.data) && !this.readOnly) await this.upgradeStored(state.data);
+      else this.data = mergeDeep(defaults(), upgradeData(state.data));
     } else {
       await this.migrateLocalV1();
     }
+    const seen = await this.db.get('state', 'seen');
+    const oldest = dayNumber() - SEEN_DAYS;
+    for (const [fp, d] of Object.entries(seen?.data || {})) if (d >= oldest) this.seen.set(fp, d);
     await this.adoptPlainPin();
     this.mirror(state?.updatedAt || Date.now());
     this.rollDay();
@@ -126,12 +136,21 @@ export class Store {
     await this.applyV1(v1, 'v1:local');
   }
 
+  // Data saved by an earlier version: keep a safety copy of it exactly as it
+  // was, upgrade it, and log the upgraded learning state as the baseline that
+  // later attempts are replayed from.
+  async upgradeStored(raw) {
+    await this.db.put('snapshots', { id: `safety-upgrade-${new Date().toISOString()}`, created: Date.now(), data: raw });
+    this.data = mergeDeep(defaults(), upgradeData(raw));
+    await this.appendOp('learn.baseline', { learn: this.data.learn, upTo: this.meta.counter?.n || 0, from: raw.learn?.v || 1 }, { withState: true });
+  }
+
   // Progress played while IndexedDB couldn't be opened (see local-save.js).
   // It's a newer copy of the whole state, so it replaces, never adds.
   async adoptFallback(mirror) {
-    this.data = mergeDeep(defaults(), mirror.data);
+    this.data = mergeDeep(defaults(), upgradeData(mirror.data));
     const keys = [...new Set([...this.meta.migrations.keys, ...(mirror.migrations || [])])];
-    await this.appendOp('adopt.fallback', { savedAt: mirror.savedAt }, {
+    await this.appendOp('adopt.fallback', { savedAt: mirror.savedAt, learn: this.data.learn }, {
       withState: true,
       metas: [{ k: 'migrations', keys }],
     });
@@ -150,7 +169,7 @@ export class Store {
     // as the import: a crash can't leave the progress without its PIN.
     const pin = plainPin && !this.meta.pin ? await pinMeta(plainPin) : null;
     this.data = mergeV1(this.data, v1);
-    await this.appendOp('import.v1', { key, ...v1Summary(v1) }, {
+    await this.appendOp('import.v1', { key, ...v1Summary(v1), learn: this.data.learn }, {
       withState: true,
       metas: [{ k: 'migrations', keys: [...this.meta.migrations.keys, key] }, ...(pin ? [pin] : [])],
     });
@@ -191,12 +210,14 @@ export class Store {
       const n = (this.meta.counter?.n || 0) + 1;
       written = { d: this.deviceId, n, t: t0, k: kind, v: 1, p: payload };
       const state = withState ? { k: 'game', data: this.snapshotData(), updatedAt: t0 } : null;
+      const seen = withState ? { k: 'seen', data: Object.fromEntries(this.seen), updatedAt: t0 } : null;
       await this.db.tx(['meta', 'ops', 'state'], 'readwrite', (t) => {
         const metaStore = t.objectStore('meta');
         t.objectStore('ops').put(written);
         metaStore.put({ k: 'counter', n });
         for (const m of metas) metaStore.put(m);
         if (state) t.objectStore('state').put(state);
+        if (seen) t.objectStore('state').put(seen);
       });
       this.meta.counter = { k: 'counter', n: written.n };
       for (const m of metas) this.meta[m.k] = m;
@@ -215,9 +236,16 @@ export class Store {
     return JSON.parse(JSON.stringify(this.data));
   }
 
-  // Save the current game state.
+  // Save the current game state. Answers already given in a run that's still
+  // going are logged with it (as part of the run), so the saved state and the
+  // learning log always agree.
   write() {
     if (this.readOnly) return Promise.resolve();
+    if (this.pending.length) {
+      const attempts = this.pending;
+      this.pending = [];
+      return this.appendOp('run.part', { w: this.runWorld, a: attempts }, { withState: true });
+    }
     const run = async () => {
       const t0 = Date.now();
       await this.db.put('state', { k: 'game', data: this.snapshotData(), updatedAt: t0 });
@@ -231,8 +259,9 @@ export class Store {
   }
 
   // ---- learning log ----
-  recordAttempt(a) {
-    this.pending.push({ ...a, t: Date.now() });
+  recordAttempt(a, world = this.runWorld) {
+    this.runWorld = world;
+    this.pending.push({ t: Date.now(), ...a });
   }
 
   // Close the current run: log its attempts as one op, together with the state.
@@ -286,11 +315,15 @@ export class Store {
     const run = () => this.replaceAllNow(args);
     const p = this.chain.then(run, run);
     this.chain = p.catch(() => {});
-    return p;
+    // An older backup's learning was upgraded: log the result as the baseline
+    // later attempts are replayed from.
+    if (!args.upgraded && !needsUpgrade(args.data)) return p;
+    return p.then(() => this.appendOp('learn.baseline', { learn: this.data.learn, upTo: 0, from: 1, restored: true }, { withState: true }));
   }
 
-  async replaceAllNow({ data, ops, migrations, profile }) {
+  async replaceAllNow({ data: incoming, ops, migrations, profile }) {
     const t0 = Date.now();
+    const data = upgradeData(incoming);
     const newDevice = { k: 'device', id: uuid(), created: Date.now(), restoredFrom: this.deviceId };
     await this.db.tx(['meta', 'ops', 'state'], 'readwrite', (t) => {
       const opsStore = t.objectStore('ops');
@@ -302,7 +335,9 @@ export class Store {
       meta.put({ k: 'migrations', keys: migrations || [] });
       if (profile?.id) meta.put({ k: 'profile', id: profile.id, created: profile.created || Date.now(), mode: 'standalone' });
       t.objectStore('state').put({ k: 'game', data, updatedAt: t0 });
+      t.objectStore('state').put({ k: 'seen', data: {}, updatedAt: t0 });
     });
+    this.seen = new Map();
     this.data = mergeDeep(defaults(), data);
     this.meta.device = newDevice;
     this.meta.counter = { k: 'counter', n: 0 };
@@ -330,7 +365,8 @@ export class Store {
   async reset() {
     const keep = { settings: this.data.settings, name: this.data.name };
     this.data = mergeDeep(defaults(), keep);
-    await this.appendOp('reset', {}, { withState: true });
+    this.seen = new Map();
+    await this.appendOp('reset', { learn: this.data.learn }, { withState: true });
   }
 
   // ---- PIN (hashed, this iPad only) ----

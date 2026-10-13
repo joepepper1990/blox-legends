@@ -24,7 +24,7 @@ export const MECHANICS = {
     display: ['text', 'lines', 'cubes', 'builds', 'figure', 'grid'],
     input: 'commit',
     lookahead: 1,
-    moveAllowanceMs: 1200, // checked by tests/levels.test.js
+    moveAllowanceMs: 1100, // the quickest row-to-row move is ~1.2 s (tests/levels.test.js)
   },
   'logic-lock': {
     name: 'Logic Lock',

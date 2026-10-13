@@ -8,6 +8,7 @@
 import { defaults, mergeDeep, rollDayData } from '../save.js';
 import { V1_LOCAL_KEY, parseV1Code, mergeV1, v1Summary } from './migrate-v1.js';
 import { sha256Hex } from './crypto.js';
+import { upgradeData } from './upgrade.js';
 
 export const MIRROR_KEY = 'blox-legends-mirror';
 
@@ -36,10 +37,11 @@ export class LocalSave {
     this.storage = storage;
     this.data = defaults();
     this.pending = [];
+    this.seen = new Map(); // kept for this session only in basic mode
     this.meta = { migrations: { keys: [] }, profile: { id: 'local', created: Date.now() } };
     const mirror = readMirror(storage);
     if (mirror) {
-      this.data = mergeDeep(defaults(), mirror.data);
+      this.data = mergeDeep(defaults(), upgradeData(mirror.data));
       this.meta.migrations.keys = mirror.migrations || [];
     } else {
       try {
@@ -96,7 +98,7 @@ export class LocalSave {
     return Promise.resolve();
   }
   async replaceAll({ data, migrations }) {
-    this.data = mergeDeep(defaults(), data);
+    this.data = mergeDeep(defaults(), upgradeData(data));
     this.meta.migrations.keys = migrations || [];
     await this.write();
   }

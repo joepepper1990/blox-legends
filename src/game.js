@@ -11,7 +11,7 @@ import { PHYS, FixedClock } from './engine/physics.js';
 import { Bolt } from './engine/bolt.js';
 import { gradientTexture } from './engine/textures.js';
 import { levelInfo, today } from './save.js';
-import { Mastery } from './learning/index.js';
+import { makeRegistry } from './learning/registry.js';
 import { openShop } from './shop.js';
 import { openParent } from './parent.js';
 import { Hub } from './worlds/hub.js';
@@ -25,7 +25,12 @@ export class Game {
   constructor(canvas, uiRoot, store) {
     this.canvas = canvas;
     this.save = store; // IndexedDB store (data/store.js) or the localStorage fallback
-    this.mastery = new Mastery(this.save.data.learn);
+    // What he knows lives in save.data.learn (learning/learner.js); the
+    // registry tells the learner model about each skill.
+    this.reg = makeRegistry({ relaxed: !!this.save.data.settings.relaxedTiming });
+    this.statuses = ['live']; // which skills are scheduled
+    this.todayCounts = null;
+    this.pausedUntil = 0;
     this.audio = new Audio();
     this.speech = new Speech();
     this.speech.enabled = this.save.data.settings.readAloud;
@@ -326,30 +331,42 @@ export class Game {
     }
   }
 
-  // Record an answer. Only the first try at a question counts towards mastery.
-  answer(q, correct, ms, firstTry, at) {
+  // After an answer has been recorded (play/run.js): today's numbers, coins,
+  // sounds, and Bolt's "slow down" after rapid guesses.
+  feedback(r, at) {
     const d = this.save.data;
     this.save.rollDay();
-    if (firstTry) {
-      this.mastery.record(q.skill, correct, ms);
+    if (r.attempt.f) {
       d.day.answered += 1;
       d.totals.answered += 1;
-      if (correct) {
+      if (r.correct) {
         d.day.correct += 1;
         d.totals.correct += 1;
       }
     }
     this.save.dirty = true;
-    const coins = correct ? (firstTry ? 5 : 1) : 0;
-    // Every attempt goes into the append-only learning log (plan §10.2).
-    this.save.recordAttempt({ s: q.skill, c: correct ? 1 : 0, f: firstTry ? 1 : 0, ms: Math.round(ms || 0), fp: q.fp, fpv: q.fpv, k: q.itemKey, fm: q.format, b: q.band, coins });
-    if (correct) {
+    if (r.correct) {
       this.audio.correct();
       this.bolt.cheer();
-      this.award(coins, firstTry ? 10 : 3, at);
+      this.award(r.coins, r.xp, at);
     } else {
       this.audio.wrong();
     }
+    if (r.slowDown) this.slowDown();
+  }
+
+  // Three rapid guesses in a row: a short, friendly pause (not a telling-off).
+  slowDown() {
+    this.pausedUntil = performance.now() + 3000;
+    this.player.frozen = true;
+    this.ui.say('Whoa, speedy! Read each question first — then choose. Let’s take a breath.', { ms: 3000 });
+    setTimeout(() => {
+      if (performance.now() >= this.pausedUntil - 50) this.player.frozen = false;
+    }, 3000);
+  }
+
+  paused() {
+    return performance.now() < this.pausedUntil;
   }
 
   // End of a run: daily star, bonus coins, personal best, results panel.

@@ -80,6 +80,11 @@ export class Vault extends World {
     this.right = 0;
     this.done = false;
     this.startTime = performance.now();
+    // Doors show coded lines today; more kinds arrive with the shared mechanic.
+    this.startRun('vault', 'logic-lock', {
+      count: (band) => (band <= 2 ? 3 : 4),
+      canShow: ({ display, q }) => display.some((k) => k === 'lines' || k === 'text') && (!q || !!q.door),
+    });
     this.setupDoor(0);
 
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
@@ -93,7 +98,7 @@ export class Vault extends World {
     const g = this.game;
     const door = this.doors[i];
     if (!door) return;
-    door.q = this.nextQuestion('verbal', (lvl) => (lvl < 0.5 ? 3 : 4));
+    door.q = this.nextQuestion();
     door.first = true;
     door.doorMat.map?.dispose();
     door.doorMat.map = runeDoorTexture(door.q.door);
@@ -119,12 +124,10 @@ export class Vault extends World {
   showQuestion(door) {
     const g = this.game;
     const q = door.q;
-    const lvl = g.mastery.level(q.skill);
+    const band = this.bandOf(q.skill);
     const isPos = q.skill === 'v.alphaPos';
-    g.ui.showAlpha(true, { numbers: !isPos && lvl < 0.55, anchors: isPos || lvl < 0.8 });
-    g.ui.question(q.prompt, this.spoken(q), `Door ${this.current + 1} of ${DOORS}`);
-    door.shownAt = performance.now();
-    g.speech.speak(this.spoken(q));
+    g.ui.showAlpha(true, { numbers: !isPos && band <= 2, anchors: isPos || band <= 4 });
+    this.present(q, `Door ${this.current + 1} of ${DOORS}`);
   }
 
   choose(door, k) {
@@ -133,10 +136,10 @@ export class Vault extends World {
     if (pad.state !== 'idle') return;
     const g = this.game;
     const q = door.q;
-    const correct = k === q.answerIndex;
     const at = pad.group.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-    g.answer(q, correct, performance.now() - door.shownAt, door.first, at);
-    if (correct) {
+    const r = this.answerQ(q, k, { firstTry: door.first, at });
+    if (!r) return;
+    if (r.correct) {
       if (door.first) this.right += 1;
       pad.setState('right');
       door.pads.forEach((p) => p !== pad && p.setState('off'));
@@ -153,8 +156,8 @@ export class Vault extends World {
     } else {
       door.first = false;
       pad.setState('wrong');
-      g.ui.say(q.hint.text);
-      g.ui.flashCells(q.hint.strip);
+      g.ui.say(this.lesson(q, r));
+      if (q.hint.strip) g.ui.flashCells(q.hint.strip);
     }
   }
 
@@ -165,8 +168,9 @@ export class Vault extends World {
         const door = this.doors[this.current];
         return { current: this.current, total: this.doors.length, hasQ: !!door?.q && !door.open, done: this.done };
       },
-      answer: (correct = true) => {
+      answer: (correct = true, { think = 4000 } = {}) => {
         const door = this.doors[this.current];
+        door.q.shownAt = performance.now() - think;
         const k = correct ? door.q.answerIndex : door.pads.findIndex((p, i) => i !== door.q.answerIndex && p.state === 'idle');
         this.choose(door, k);
       },

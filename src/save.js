@@ -1,4 +1,5 @@
 // Game-state shape and helpers shared by the save stores.
+import { freshLearn } from './learning/learner.js';
 // The primary store is IndexedDB (src/data/store.js); src/data/local-save.js is
 // the v1-style localStorage fallback for browsers without IndexedDB.
 
@@ -25,7 +26,7 @@ export function defaults() {
     xp: 0,
     owned: ['shirt-blue', 'hat-none', 'trail-none'],
     look: { shirt: 'shirt-blue', hat: 'hat-none', trail: 'trail-none' },
-    learn: { skills: {}, recent: {} },
+    learn: freshLearn(),
     best: { obby: 0, vault: 0, lab: 0 },
     day: freshDay(today()),
     history: [],
