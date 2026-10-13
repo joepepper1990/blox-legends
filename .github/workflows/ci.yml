@@ -21,8 +21,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Unit tests (generators, mastery, physics, levels, saves, backups)
+      - name: Unit tests (generators, checkers, learner, scheduler, simulations, saves, backups)
         run: npm test
+      - name: Content validation (checkers, fit, curriculum, capacity over 90 simulated days)
+        run: node tools/validate-content.mjs
       - name: Install Chromium for browser tests
         run: npx playwright install --with-deps chromium
       - name: Browser tests (boot, play, save, backup/restore, v1 import, offline, updates)

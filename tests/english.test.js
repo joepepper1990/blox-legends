@@ -91,3 +91,15 @@ test('every Word item can be asked at the highest band', () => {
     assert.ok(ids.length >= 15, `${skill}: only ${ids.length} items`);
   }
 });
+
+test('the code and mirror word lists are real words of the right length', async () => {
+  const { WORDS3, WORDS4, WORDS5 } = await import('../src/learning/lexicon.js');
+  for (const [list, len] of [[WORDS3, 3], [WORDS4, 4], [WORDS5, 5]]) {
+    assert.equal(new Set(list).size, list.length, `duplicates in the ${len}-letter list`);
+    for (const w of list) {
+      assert.match(w, /^[a-z]+$/);
+      assert.equal(w.length, len, w);
+      assert.ok(isWord(w), `${w} is not in the dictionary`);
+    }
+  }
+});

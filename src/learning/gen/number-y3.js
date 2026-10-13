@@ -443,7 +443,7 @@ export const double2 = {
   make(skill, { band, format, count, rng }) {
     const fmt = format || pick(rng, double2.formatsAt(skill, band));
     if (fmt === 'double') {
-      const n = band <= 2 ? randInt(rng, 11, 49) : band === 3 ? randInt(rng, 21, 99) : band === 4 ? randInt(rng, 20, 50) * 5 : randInt(rng, 101, 499);
+      const n = band <= 2 ? randInt(rng, 11, 49) : band === 3 ? randInt(rng, 21, 99) : band === 4 ? randInt(rng, 20, 99) * 5 : randInt(rng, 101, 499);
       const ans = n * 2;
       const tens = n - (n % 10);
       const cands = [
@@ -462,7 +462,7 @@ export const double2 = {
         stem: { n, op: 'double' },
       });
     }
-    const n = band <= 2 ? randInt(rng, 11, 49) * 2 : band === 3 ? randInt(rng, 50, 99) * 2 : band === 4 ? randInt(rng, 2, 50) * 10 : randInt(rng, 100, 499) * 2;
+    const n = band <= 2 ? randInt(rng, 11, 49) * 2 : band === 3 ? randInt(rng, 50, 99) * 2 : band === 4 ? randInt(rng, 2, 99) * 10 : randInt(rng, 100, 499) * 2;
     const ans = n / 2;
     const cands = [
       { v: ans + 10, mis: 'tens-slip' },
