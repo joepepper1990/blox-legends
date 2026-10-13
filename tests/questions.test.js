@@ -12,6 +12,7 @@ import { makeItem, finish, formatsAt, itemsOf } from '../src/learning/question.j
 import { verify } from '../src/learning/check/index.js';
 import { fpOf, FPV, inPartition } from '../src/learning/fp.js';
 import { MECHANICS } from '../src/mechanics/caps.js';
+import { FORMATS } from '../src/learning/formats.js';
 import { ZONES } from '../src/learning/skills.js';
 import { seeded } from '../src/learning/rng.js';
 import '../src/learning/content.js';
@@ -37,7 +38,7 @@ for (const s of BUILT) {
     let made = 0;
     for (let band = 1; band <= 5; band++)
       for (const count of countsFor(s))
-        for (const format of formatsAt(s.id, band, count))
+        for (const format of formatsAt(s.id, band, count).filter((f) => count >= FORMATS[f].minOptions))
           for (let seed = 1; seed <= SEEDS; seed++) {
             const rng = seeded(seed * 7919 + band * 131 + count * 31 + format.length * 7);
             const q = finish(GEN[s.gen].make(s, { band, format, count, rng }));
@@ -58,7 +59,7 @@ for (const s of BUILT.filter((x) => x.transfer.length)) {
     for (const t of s.transfer) {
       const [lo, hi] = MECHANICS[t.mech].options;
       for (let band = 1; band <= 5; band++)
-        for (let count = lo; count <= hi; count++)
+        for (let count = Math.max(lo, 3); count <= hi; count++)
           for (let seed = 1; seed <= 8; seed++) {
             const q = makeItem(s.id, { band, format: t.format, count, rng: seeded(seed * 53 + band * 7 + count) });
             assert.equal(q.format, t.format);
@@ -140,7 +141,7 @@ test('checkers catch a wrong answer, a changed question and a broken option', ()
   let stemCaught = 0;
   for (const s of BUILT) {
     for (let seed = 1; seed <= 12; seed++) {
-      const q = makeItem(s.id, { band: 1 + (seed % 5), count: countsFor(s).at(-1), rng: seeded(seed * 17) });
+      const q = makeItem(s.id, { band: 1 + (seed % 5), count: Math.max(...countsFor(s)), rng: seeded(seed * 17) });
       const a = structuredClone(q);
       a.answerIndex = (q.answerIndex + 1) % q.options.length;
       assert.equal(verify(a).ok, false, `${s.id}: wrong answer index not caught`);

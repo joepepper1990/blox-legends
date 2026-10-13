@@ -8,6 +8,7 @@
 //                 no coins (plan §7, §8.1)
 //   speakOptions  read the options aloud (never for spelling!)
 //   transfer      used only to show the skill in a new context ("Applied")
+//   minOptions    fewest options the format makes sense with
 //   presentation  a transfer that shows a practice item in another world;
 //                 its display needs are those of the item's own format
 //   display       what a mechanic must be able to show: text (a short
@@ -15,7 +16,7 @@
 //                 sentences), column (a written sum), cubes, builds, grid,
 //                 figure (non-verbal shapes)
 
-const f = (answer, o = {}) => ({ answer, direct: false, minMs: 900, speakOptions: true, transfer: false, display: ['text'], ...o });
+const f = (answer, o = {}) => ({ answer, direct: false, minMs: 900, speakOptions: true, transfer: false, display: ['text'], minOptions: 2, ...o });
 
 export const FORMATS = {
   // ---- number facts ----
@@ -60,7 +61,7 @@ export const FORMATS = {
   // ---- word-based reasoning ----
   syn: f('word', { minMs: 1200, display: ['text', 'lines'] }),
   ant: f('word', { minMs: 1200, display: ['text', 'lines'] }),
-  odd: f('word', { minMs: 1500, display: ['text', 'lines'] }),
+  odd: f('word', { minMs: 1500, display: ['text', 'lines'], minOptions: 3 }),
   compound: f('word', { minMs: 1200, display: ['text', 'lines'] }),
   // ---- shape ----
   count: f('number', { minMs: 1200, display: ['cubes'] }),

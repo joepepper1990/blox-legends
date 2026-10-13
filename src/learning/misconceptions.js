@@ -62,6 +62,13 @@ export const MISCONCEPTIONS = {
   'series-wrong-step': M('code', 'Used the wrong step', (p) => `Look at the gaps between the letters: ${p.how}. Next is ${p.answer}.`),
   'series-one-off': M('code', 'One letter out', (p) => `Count the gap carefully with the strip: ${p.answer}.`),
   'mirror-shift': M('code', 'Shifted instead of mirroring', (p) => `Mirror code swaps A↔Z, B↔Y, C↔X… so it's ${p.answer}.`),
+  // ---- word-based reasoning ----
+  'syn-opposite': M('code', 'Picked the opposite', (p) => `That word means the opposite of ${p.word}. A word that means the same is ${p.answer}.`),
+  'syn-related': M('code', 'Picked a word that goes with it, not one that means the same', (p) => `That word is linked to ${p.word}, but it doesn't mean the same. ${p.answer} means the same as ${p.word}.`),
+  'ant-same': M('code', 'Picked a word that means the same', (p) => `That word means nearly the same as ${p.word}. The opposite is ${p.answer}.`),
+  'ant-related': M('code', 'Picked a linked word, not the opposite', (p) => `That word goes with ${p.word}, but it isn't its opposite. The opposite is ${p.answer}.`),
+  'odd-other-group': M('code', 'Grouped the words a different way', (p) => `Three of the words are ${p.group}. ${p.answer} is not, so it's the odd one out.`),
+  'compound-not-word': M('code', 'Joined words that don\'t make a real word', (p) => `${p.first} and that word don't make a real word. ${p.first} + ${p.answer} makes ${p.first}${p.answer}.`),
   // ---- cubes and shapes ----
   'cube-visible-only': M('shape', 'Counted only the blocks you can see', (p) => `Some blocks are hidden underneath, holding the top ones up. There are ${p.answer}.`),
   'cube-one-off': M('shape', 'Missed or double-counted a block', (p) => `Count layer by layer: ${p.layers}. That's ${p.answer}.`),

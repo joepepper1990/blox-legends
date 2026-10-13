@@ -4,12 +4,13 @@
 import { solveNumber } from './number.js';
 import { solveVerbal, doorAgrees } from './verbal.js';
 import { solveShape } from './shape.js';
+import { solveWords } from './words.js';
 
 const SOLVERS = {
   m: (q) => solveNumber(q),
   v: (q) => {
     const answers = solveVerbal(q);
-    if (answers === null) return null;
+    if (answers === null) return solveWords(q);
     return { correct: q.options.map((o, i) => (answers.includes(o.label) ? i : -1)).filter((i) => i >= 0), answers };
   },
   s: (q) => solveShape(q),

@@ -6,6 +6,7 @@ import * as facts from './number-facts.js';
 import * as verbal from './verbal.js';
 import * as shape from './shape.js';
 import * as y3 from './number-y3.js';
+import * as cw from './code-words.js';
 
 export const GEN = {
   table: facts.table,
@@ -40,6 +41,10 @@ export const GEN = {
   inverse: y3.inverse,
   double2: y3.double2,
   wp1: y3.wp1,
+  syn: cw.syn,
+  ant: cw.ant,
+  odd: cw.odd,
+  compound: cw.compound,
 };
 
 export function addGenerators(more) {
