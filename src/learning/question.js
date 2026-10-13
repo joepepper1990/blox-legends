@@ -31,14 +31,16 @@ export function formatsAt(skillId, band, count = 3) {
 export function canAsk(skillId, format, band, count) {
   const fmt = FORMATS[format];
   if (!fmt || count < fmt.minOptions) return false;
+  // one of the skill's own formats: only if its generator can fill `count`
+  if (generatorFor(skillId).skill.formats.includes(format)) return formatsAt(skillId, band, count).includes(format);
   if (!fmt.presentation) return true;
   return formatsAt(skillId, band, count).some((f) => count >= FORMATS[f].minOptions);
 }
 
 // Fact and authored skills list their items; procedural ones don't.
-export function itemsOf(skillId, band) {
+export function itemsOf(skillId, band, count) {
   const { skill, gen } = generatorFor(skillId);
-  return gen.items ? gen.items(skill, band) : null;
+  return gen.items ? gen.items(skill, band, count) : null;
 }
 
 export function finish(q) {

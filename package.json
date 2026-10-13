@@ -12,6 +12,7 @@
     "e2e:live": "node --test --test-concurrency=1 tests/e2e/live.e2e.js"
   },
   "devDependencies": {
+    "an-array-of-english-words": "2.0.0",
     "fake-indexeddb": "6.2.5",
     "playwright": "1.56.1"
   },

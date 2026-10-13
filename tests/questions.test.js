@@ -141,7 +141,9 @@ test('checkers catch a wrong answer, a changed question and a broken option', ()
   let stemCaught = 0;
   for (const s of BUILT) {
     for (let seed = 1; seed <= 12; seed++) {
-      const q = makeItem(s.id, { band: 1 + (seed % 5), count: Math.max(...countsFor(s)), rng: seeded(seed * 17) });
+      const band = 1 + (seed % 5);
+      const count = Math.max(...countsFor(s).filter((c) => formatsAt(s.id, band, c).length));
+      const q = makeItem(s.id, { band, count, rng: seeded(seed * 17) });
       const a = structuredClone(q);
       a.answerIndex = (q.answerIndex + 1) % q.options.length;
       assert.equal(verify(a).ok, false, `${s.id}: wrong answer index not caught`);

@@ -70,10 +70,10 @@ export const FORMATS = {
   'nvr-series': f('choice', { minMs: 1500, display: ['figure'] }),
   'nvr-odd': f('choice', { minMs: 1500, display: ['figure'], minOptions: 3 }),
   // ---- English ----
-  spell: f('word', { minMs: 1200, speakOptions: false }),
+  spell: f('word', { direct: true, minMs: 1200, speakOptions: false, minOptions: 3 }),
   'prefix-make': f('word', { minMs: 1200 }),
   'prefix-meaning': f('word', { minMs: 1500 }),
-  ly: f('word', { minMs: 1200, speakOptions: false }),
+  ly: f('word', { direct: true, minMs: 1200, speakOptions: false, minOptions: 3 }),
   aan: f('word', { minMs: 900 }),
   gap: f('word', { minMs: 1500, display: ['prose'] }),
   // ---- transfer contexts (plan §7 "Applied") ----

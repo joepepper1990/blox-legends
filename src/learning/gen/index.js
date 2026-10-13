@@ -8,6 +8,7 @@ import * as shape from './shape.js';
 import * as y3 from './number-y3.js';
 import * as cw from './code-words.js';
 import * as nvr from './nvr.js';
+import * as en from './english.js';
 
 export const GEN = {
   table: facts.table,
@@ -48,6 +49,13 @@ export const GEN = {
   compound: cw.compound,
   nvrSeries: nvr.nvrSeries,
   nvrOdd: nvr.nvrOdd,
+  spell34: en.spell34,
+  prefix: en.prefix,
+  ly: en.ly,
+  aan: en.aan,
+  conj: en.conj,
+  prep: en.prep,
+  adverb: en.adverb,
 };
 
 export function addGenerators(more) {

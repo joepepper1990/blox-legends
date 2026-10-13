@@ -79,6 +79,25 @@ export const MISCONCEPTIONS = {
   'nvr-one-rule': M('shape', 'Followed only one of the changes', (p) => `Two things change in this pattern: ${p.rules}. Check both.`),
   'nvr-wrong-step': M('shape', 'Changed by the wrong amount', (p) => `Check how much changes each time: ${p.rules}.`),
   'nvr-odd-other': M('shape', 'Spotted a difference that isn’t the rule', (p) => `Look for the one feature that all the others share: ${p.rule}.`),
+  // ---- spelling and grammar (Word zone) ----
+  'spell-double': M('word', 'Missed or added a double letter', (p) => `Check the double letters: ${p.answer}.`),
+  'spell-sound': M('word', 'Spelt it the way it sounds', (p) => `${p.answer} isn't spelt quite the way it sounds. Look at it carefully: ${p.answer}.`),
+  'spell-silent': M('word', 'Left out a silent letter', (p) => `${p.answer} has a letter you can't hear. Say it in your head the "spelling way".`),
+  'spell-order': M('word', 'Letters in the wrong order', (p) => `The right letters, but two are swapped round. It's ${p.answer}.`),
+  'prefix-not-word': M('word', 'Picked a prefix that doesn\'t make a real word', (p) => `That doesn't make a real word. ${p.answer} + ${p.root} makes ${p.word}.`),
+  'prefix-meaning': M('word', 'Mixed up what a prefix means', (p) => `un-, dis-, in- and im- mean "not"; re- means "again"; mis- means "wrongly". So ${p.prefix}- means ${p.answer}.`),
+  'ly-kept-y': M('word', 'Kept the y before -ly', (p) => `When a word ends in a consonant and y, the y changes to i: ${p.word} → ${p.answer}.`),
+  'ly-kept-le': M('word', 'Kept the -le before -ly', (p) => `For words ending in -le, the e changes to y: ${p.word} → ${p.answer}.`),
+  'ly-ic': M('word', 'Added just -ly after -ic', (p) => `Words ending in -ic add -ally: ${p.word} → ${p.answer}.`),
+  'ly-changed': M('word', 'Changed the word before adding -ly', (p) => `${p.word} + ly is ${p.answer}.`),
+  'aan-letter': M('word', 'Looked at the first letter, not the first sound', () => `It's the first sound that matters: an hour (the h is silent), a unicorn (it starts with a "yoo" sound).`),
+  'aan-sound': M('word', 'Used an before a consonant sound', (p) => `"an" goes before a vowel sound. ${p.need} ${p.answer} is right.`),
+  'conj-meaning': M('word', 'Picked a joining word that changes the meaning', (p) => `Read it again with each word: "${p.text}" makes sense.`),
+  'prep-time': M('word', 'Used the wrong word for a time', () => `We say on for days (on Monday), in for months, seasons and parts of the day (in July, in the morning), and at for clock times (at three o'clock, at night).`),
+  'prep-place': M('word', 'Used the wrong word for a place', (p) => `We say "${p.text}".`),
+  'adverb-adjective': M('word', 'Used the describing word instead of the adverb', (p) => `To say how something is done, use the -ly word: "${p.text}".`),
+  'adverb-noun': M('word', 'Used a naming word instead of the adverb', (p) => `That's a naming word (a noun). To say how something is done, use "${p.answer}".`),
+  'adverb-time': M('word', 'Picked a time word that doesn\'t match the sentence', (p) => `Check when it happens: past (yesterday) or future (tomorrow, soon). "${p.text}"`),
 };
 
 registerIds('misconceptions', Object.keys(MISCONCEPTIONS));

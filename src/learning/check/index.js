@@ -6,6 +6,7 @@ import { solveVerbal, doorAgrees } from './verbal.js';
 import { solveShape } from './shape.js';
 import { solveWords } from './words.js';
 import { solveNvr } from './nvr.js';
+import { solveEnglish } from './english.js';
 
 const SOLVERS = {
   m: (q) => solveNumber(q),
@@ -15,6 +16,7 @@ const SOLVERS = {
     return { correct: q.options.map((o, i) => (answers.includes(o.label) ? i : -1)).filter((i) => i >= 0), answers };
   },
   s: (q) => solveShape(q),
+  e: (q) => solveEnglish(q),
 };
 const extra = {}; // content packs add solvers for their own formats
 
