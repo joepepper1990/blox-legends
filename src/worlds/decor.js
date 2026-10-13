@@ -2,6 +2,10 @@
 import * as THREE from 'three';
 import { box, platform, material } from '../engine/blocks.js';
 import { labelSprite, setSpriteText, swirlTexture, glowTexture } from '../engine/textures.js';
+import { fitLabelHeight } from '../engine/fit.js';
+
+// Pad labels are drawn like this; validate-content checks answers fit.
+export const PAD_LABEL = { size: 80, letterSpacing: 8 };
 
 export function island(world, x, top, z, w, d, { grass = 0x5cc35a, dirt = 0x8a5a36, depth = 4 } = {}) {
   const g = platform(world, w, 1, d, grass, x, top, z);
@@ -162,7 +166,8 @@ export function answerPad(world, x, y, z, label, { w = 2, d = 2, color = 0x2f7cf
   g.add(rim, mesh);
   let sprite = null;
   if (label !== null && label !== undefined) {
-    sprite = labelSprite(String(label), labelH, { size: 80, letterSpacing: 8 });
+    // Long answers shrink to stay over their own pad.
+    sprite = labelSprite(String(label), fitLabelHeight(String(label), labelH, w * 1.12, PAD_LABEL), PAD_LABEL);
     sprite.position.y = labelY;
     g.add(sprite);
   }

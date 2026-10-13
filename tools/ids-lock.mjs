@@ -9,6 +9,7 @@ import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { currentIds } from '../src/learning/ids.js';
+import '../src/learning/content.js';
 import { IDS_LOCK } from '../src/learning/ids-lock.js';
 
 const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'learning', 'ids-lock.js');

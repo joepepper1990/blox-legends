@@ -5,8 +5,9 @@
 //   options     how many answers it can lay out [min, max]
 //   evidenceMin answers with fewer options than this don't count as evidence
 //               for Accurate or for checks (a 2-way guess is too lucky)
-//   label       the widest answer label, in em of the label font
-//   lines       coded lines it can show: count and width in em
+//   label       answer labels: drawn `height` tall with `font`, shrunk to fit
+//               `maxWidth` (by option count); never smaller than minHeight
+//   lines       how many coded lines it can show (door lines, sign lines)
 //   display     display kinds it can show (see formats.js)
 //   input       'tap': the answer moment is a tap or a step, so its time is
 //               the thinking time; 'commit': the answer is a jump, and the
@@ -17,8 +18,8 @@ export const MECHANICS = {
     name: 'Choice Path',
     options: [2, 3],
     evidenceMin: 3,
-    label: { maxEm: 4.2 },
-    lines: { count: 2, maxEm: 15 },
+    label: { height: 1.3, maxWidth: { 2: 3.1, 3: 3.1 }, minHeight: 0.8, font: { size: 90, letterSpacing: 4 } },
+    lines: 2,
     display: ['text', 'lines', 'cubes', 'builds', 'figure', 'grid'],
     input: 'commit',
     lookahead: 1,
@@ -28,8 +29,8 @@ export const MECHANICS = {
     name: 'Logic Lock',
     options: [3, 4],
     evidenceMin: 3,
-    label: { maxEm: 5.6 },
-    lines: { count: 2, maxEm: 15 },
+    label: { height: 1.1, maxWidth: { 3: 2.9, 4: 2.35 }, minHeight: 0.6, font: { size: 80, letterSpacing: 8 } },
+    lines: 3,
     display: ['text', 'lines', 'prose', 'column', 'grid', 'figure'],
     input: 'tap',
     lookahead: 0,
@@ -38,8 +39,8 @@ export const MECHANICS = {
     name: 'Pattern Plates',
     options: [3, 4],
     evidenceMin: 3,
-    label: { maxEm: 3 },
-    lines: { count: 0, maxEm: 0 },
+    label: { height: 0.9, maxWidth: { 3: 2.6, 4: 2.4 }, minHeight: 0.6, font: { size: 80, letterSpacing: 8 } },
+    lines: 0,
     display: ['text', 'cubes', 'builds', 'grid', 'figure'],
     input: 'tap',
     lookahead: 0,

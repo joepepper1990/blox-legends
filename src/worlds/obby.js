@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { World } from './base.js';
 import { platform, box } from '../engine/blocks.js';
 import { labelSprite } from '../engine/textures.js';
+import { fitLabelHeight } from '../engine/fit.js';
 import { chest, cloud } from './decor.js';
 import { OBBY, rowZ, finishZ as finishZOf, panelX } from './obby-layout.js';
 
@@ -105,7 +106,7 @@ export class Obby extends World {
         new THREE.MeshLambertMaterial({ color: 0x5b6478 }),
       );
       frame.position.y = -0.35;
-      const label = labelSprite(opt.label, 1.3, { size: 90 });
+      const label = labelSprite(opt.label, fitLabelHeight(opt.label, 1.3, PANEL + 0.1, { size: 90 }), { size: 90 });
       label.position.y = 1.6;
       label.visible = this.rows.indexOf(row) === this.current; // only the row being asked
       group.add(glass, frame, label);

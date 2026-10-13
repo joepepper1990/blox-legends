@@ -1,5 +1,6 @@
 // Canvas-drawn textures, so the game ships with no image files.
 import * as THREE from 'three';
+import { DOOR_FIT, doorSizePx } from './fit.js';
 
 const FONT = "'Lexend', Verdana, sans-serif";
 
@@ -215,13 +216,19 @@ export function runeDoorTexture(lines) {
   g.fill();
   g.fillStyle = '#1d2340';
   g.textBaseline = 'middle';
-  const size = lines.some((l) => l.length > 12) ? 92 : 120;
+  // Letters are spaced out like carved runes; the size shrinks so every line
+  // fits the 844 px panel (DOOR_FIT is the same rule validate-content checks).
+  const size = doorSizePx(lines);
   g.font = `700 ${size}px ${FONT}`;
   lines.forEach((line, i) => {
     const y = 384 + (i - (lines.length - 1) / 2) * size * 1.35;
-    const spaced = line.split('').join(' ');
-    const w = g.measureText(spaced).width;
-    g.fillText(spaced, 512 - w / 2, y);
+    const chars = [...line];
+    const w = chars.reduce((s, ch) => s + g.measureText(ch).width, 0) + DOOR_FIT.gapEm * size * (chars.length - 1);
+    let x = 512 - w / 2;
+    for (const ch of chars) {
+      g.fillText(ch, x, y);
+      x += g.measureText(ch).width + DOOR_FIT.gapEm * size;
+    }
   });
   return finish(c);
 }

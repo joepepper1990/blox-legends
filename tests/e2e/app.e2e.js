@@ -104,6 +104,22 @@ test('a wrong answer on the Glass Bridge smashes the glass and the row can be re
   assert.deepEqual(page.errors, []);
 });
 
+test('the glyph width table used to check text fits still matches the real font', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await ready(page);
+  const diffs = await page.evaluate(async () => {
+    const { LEXEND_700 } = await import('./src/engine/font-metrics.js');
+    await document.fonts.load("700 100px 'Lexend'");
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = "700 1000px 'Lexend'";
+    return Object.entries(LEXEND_700)
+      .map(([ch, em]) => [ch, Math.abs(c.measureText(ch).width / 1000 - em)])
+      .filter(([, d]) => d > 0.01);
+  });
+  assert.deepEqual(diffs, []);
+});
+
 test('the old game save on this iPad is brought over once and left in place', async () => {
   const { ctx, page } = await newPage();
   const v1 = {
