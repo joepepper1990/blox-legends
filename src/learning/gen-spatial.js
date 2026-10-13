@@ -137,7 +137,7 @@ function genRotate(skill, lvl, count, rng, yOnly) {
   const rots = yOnly ? ROTS_Y : ROTATIONS;
   const same = (a, b) => sameShape(a, b, rots);
   for (let attempt = 0; attempt < 200; attempt++) {
-    const target = randomPolycube(rng, n, 3, yOnly && lvl < 0.3);
+    const target = randomPolycube(rng, n, 3, yOnly && lvl < 0.3 && chance(rng, 0.5));
     if (target.length !== n) continue;
     const mirrored = normalize(mirror(target));
     if (same(mirrored, target)) continue; // need a real mirror image
@@ -213,7 +213,7 @@ function genCount(skill, lvl, count, rng, mode) {
   let cubes;
   let layers;
   if (mode === 1) {
-    const n = randInt(rng, 3, lvl < 0.3 ? 6 : lvl < 0.7 ? 8 : 10);
+    const n = randInt(rng, 3, lvl < 0.3 ? 7 : lvl < 0.7 ? 8 : 10);
     cubes = randomPolycube(rng, n, 4, true);
     layers = [cubes.length];
   } else {

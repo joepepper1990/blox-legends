@@ -120,13 +120,13 @@ export const alphaPos = {
 
 // ---------------- jumping along the alphabet (procedural) ----------------
 export const alphaJump = {
-  formatsAt: (skill, band) => (band <= 1 ? ['jump'] : ['jump', 'hops', 'dist']),
+  formatsAt: (skill, band) => (band <= 1 ? ['jump', 'dist'] : ['jump', 'hops', 'dist']),
   make(skill, { band, format, count, rng }) {
     const fmt = format || pick(rng, alphaJump.formatsAt(skill, band));
     const maxN = band <= 1 ? 3 : band === 2 ? 4 : band === 3 ? 5 : 6;
     if (fmt === 'jump') {
-      const back = band >= 3 && chance(rng, 0.45);
-      const n = randInt(rng, 2, maxN);
+      const back = band >= 3 ? chance(rng, 0.45) : chance(rng, 0.25);
+      const n = randInt(rng, back && band <= 2 ? 1 : 2, back && band <= 2 ? 2 : maxN);
       const d = back ? -n : n;
       const i = back ? randInt(rng, n, 25) : randInt(rng, 0, 25 - n);
       const ch = ALPHA[i];
@@ -179,7 +179,7 @@ export const alphaJump = {
       });
     }
     // dist: how many jumps from one letter to another
-    const gap = randInt(rng, 2, band <= 2 ? 6 : band === 3 ? 9 : 14);
+    const gap = randInt(rng, 2, band <= 1 ? 5 : band === 2 ? 7 : band === 3 ? 9 : 14);
     const i = randInt(rng, 0, 25 - gap);
     const [x, y] = band >= 4 && chance(rng, 0.4) ? [ALPHA[i + gap], ALPHA[i]] : [ALPHA[i], ALPHA[i + gap]];
     const cands = [
@@ -309,7 +309,7 @@ export const mirror = {
   formatsAt: (skill, band) => (band <= 2 ? ['mirror'] : ['mirror', 'unmirror']),
   make(skill, { band, format, count, rng }) {
     const fmt = format || pick(rng, mirror.formatsAt(skill, band));
-    const w = pick(rng, band <= 2 ? W3 : band === 3 ? [...W3, ...W4] : [...W4, ...W5]);
+    const w = pick(rng, band <= 1 ? W3 : band <= 3 ? [...W3, ...W4] : [...W3, ...W4, ...W5]);
     const m = mirrorOf(w);
     const [given, ans] = fmt === 'mirror' ? [w, m] : [m, w];
     const cands = [
@@ -343,10 +343,10 @@ function seriesSpec(rng, band) {
   if (band >= 4) fams.push('grow', 'inter');
   const fam = pick(rng, fams);
   const dir = band >= 2 && chance(rng, 0.4) ? -1 : 1;
-  const len = fam === 'inter' ? 6 : band <= 1 ? 4 : pick(rng, [4, 5]);
+  const len = fam === 'inter' ? 6 : band <= 1 ? pick(rng, [4, 5]) : pick(rng, [4, 5, 5, 6]);
   let steps;
-  if (fam === 'const') steps = [randInt(rng, 1, band <= 1 ? 2 : band === 2 ? 3 : 4)];
-  else if (fam === 'alt') steps = pick(rng, [[1, 2], [2, 1], [1, 3], [3, 1], [2, 3]]);
+  if (fam === 'const') steps = [randInt(rng, 1, band <= 1 ? 3 : band === 2 ? 4 : 5)];
+  else if (fam === 'alt') steps = pick(rng, [[1, 2], [2, 1], [1, 3], [3, 1], [2, 3], [3, 2], [1, 4], [4, 1]]);
   else if (fam === 'grow') steps = [1, 2, 3, 4, 5].slice(0, len);
   else steps = null;
   return { fam, dir, len, steps };
