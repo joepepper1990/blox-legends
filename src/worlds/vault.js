@@ -158,6 +158,22 @@ export class Vault extends World {
     }
   }
 
+  // Stable hook for automated tests: answer the current door without walking.
+  get test() {
+    return {
+      state: () => {
+        const door = this.doors[this.current];
+        return { current: this.current, total: this.doors.length, hasQ: !!door?.q && !door.open, done: this.done };
+      },
+      answer: (correct = true) => {
+        const door = this.doors[this.current];
+        const k = correct ? door.q.answerIndex : door.pads.findIndex((p, i) => i !== door.q.answerIndex && p.state === 'idle');
+        this.choose(door, k);
+      },
+      finish: () => this.finish(),
+    };
+  }
+
   finish() {
     if (this.done || this.current < DOORS) return;
     this.done = true;

@@ -3,49 +3,26 @@
 // worker runs. Run with: npm run e2e   (builds first)
 import { test, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { join, extname, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
-
-const SITE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '_site');
-const TYPES = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml',
-};
+import { serveSite, launch, pages, ready, startPlaying, playRun, saveInfo, openDashboard } from './helpers.js';
 
 let server;
 let base;
 let browser;
+let tracked;
 let swVersionOverride = null; // simulates a new release of sw.js
 
 before(async () => {
-  server = createServer(async (req, res) => {
-    let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    if (path.endsWith('/')) path += 'index.html';
-    try {
-      let body = await readFile(join(SITE, path));
-      if (path === '/sw.js' && swVersionOverride)
-        body = Buffer.from(body.toString().replace(/const VERSION = '[^']+'/, `const VERSION = '${swVersionOverride}'`));
-      res.writeHead(200, { 'content-type': TYPES[extname(path)] || 'application/octet-stream', 'cache-control': 'no-cache' });
-      res.end(body);
-    } catch {
-      res.writeHead(404);
-      res.end('not found');
-    }
-  });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  base = `http://127.0.0.1:${server.address().port}/`;
-  browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  ({ server, base } = await serveSite((path, body) =>
+    path === '/sw.js' && swVersionOverride
+      ? Buffer.from(body.toString().replace(/const VERSION = '[^']+'/, `const VERSION = '${swVersionOverride}'`))
+      : body,
+  ));
+  browser = await launch();
+  tracked = pages(browser);
 });
 
-// Close every page after each test, even a failed one: a page left running
-// software WebGL would slow every later test down.
-const open = new Set();
 afterEach(async () => {
-  for (const ctx of open) await ctx.close().catch(() => {});
-  open.clear();
+  await tracked.closeAll();
   swVersionOverride = null;
 });
 
@@ -54,71 +31,8 @@ after(async () => {
   server?.close();
 });
 
-async function newPage(context) {
-  const ctx = context || (await browser.newContext({ viewport: { width: 1180, height: 820 }, hasTouch: true, acceptDownloads: true }));
-  open.add(ctx);
-  const page = await ctx.newPage();
-  page.errors = [];
-  page.on('pageerror', (e) => page.errors.push(`pageerror: ${e.message}`));
-  page.on('console', (m) => m.type() === 'error' && page.errors.push(`console: ${m.text()}`));
-  return { ctx, page };
-}
-
-const ready = (page) => page.waitForFunction(() => window.__game?.world, null, { timeout: 30000 });
-
-async function startPlaying(page, name = 'Freddie') {
-  await ready(page);
-  const input = page.locator('.title-screen input');
-  if (await input.count()) await input.fill(name);
-  await page.locator('.play-btn').click();
-  await page.waitForFunction(() => __game.started);
-}
-
-// Play a full Code Vault run by stepping on the right tile at every door.
-async function playVault(page) {
-  await page.evaluate(() => __game.go('vault'));
-  for (;;) {
-    const state = await page.evaluate(() => {
-      const w = __game.world;
-      return { current: w.current, total: w.doors.length, hasQ: !!w.doors[w.current]?.q };
-    });
-    if (state.current >= state.total) break;
-    if (!state.hasQ) {
-      await page.waitForTimeout(100);
-      continue;
-    }
-    await page.evaluate(() => {
-      const w = __game.world;
-      const door = w.doors[w.current];
-      w.choose(door, door.q.answerIndex);
-    });
-    await page.waitForTimeout(50);
-  }
-  await page.evaluate(() => __game.world.finish());
-  await page.evaluate(() => __game.save.chain);
-  await page.waitForSelector('.results');
-}
-
-const saveInfo = (page) =>
-  page.evaluate(async () => {
-    const s = __game.save;
-    const ops = await s.getOps();
-    return { mode: s.mode, coins: s.data.coins, name: s.data.name, device: s.deviceId, ops: ops.map((o) => ({ k: o.k, n: o.n, a: o.p?.a?.length || 0 })) };
-  });
-
-async function openDashboard(page, pin = '2468') {
-  await page.evaluate(() => {
-    for (const o of document.querySelectorAll('.overlay')) o.remove();
-    __game.input.enabled = true;
-  });
-  await page.locator('.hud-tr .icon-btn[aria-label="Grown-ups"]').click();
-  const type = async () => {
-    for (const k of pin) await page.locator('.pin-pad button', { hasText: new RegExp(`^${k}$`) }).click();
-  };
-  await type();
-  if (await page.locator('text=Type the same PIN again').count()) await type();
-  await page.waitForSelector('.panel.parent');
-}
+const newPage = (ctx) => tracked.newPage(ctx);
+const playVault = (page) => playRun(page, 'vault');
 
 test('boots cleanly, plays a Code Vault run and keeps it after a reload', async () => {
   const { ctx, page } = await newPage();
@@ -156,6 +70,38 @@ test('every world loads and runs without errors', async () => {
   }
   assert.deepEqual(page.errors, []);
   await ctx.close();
+});
+
+for (const [world, label] of [['obby', 'Glass Bridge'], ['lab', 'Build Lab']]) {
+  test(`a full ${label} run is played, scored and saved`, async () => {
+    const { page } = await newPage();
+    await page.goto(`${base}?nosw`);
+    await startPlaying(page);
+    const before = await saveInfo(page);
+    await playRun(page, world);
+    const after = await saveInfo(page);
+    assert.ok(after.coins > before.coins, 'coins earned');
+    const run = after.ops.find((o) => o.k === 'run');
+    assert.ok(run && run.a > 0, 'run logged with its attempts');
+    const stars = await page.evaluate((w) => __game.save.data.day.stars[w], world);
+    assert.equal(stars, true, 'daily star earned');
+    assert.deepEqual(page.errors, []);
+  });
+}
+
+test('a wrong answer on the Glass Bridge smashes the glass and the row can be retried', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await page.evaluate(() => __game.go('obby'));
+  await page.waitForFunction(() => __game.world.test.state().hasQ);
+  await page.evaluate(() => __game.world.test.answer(false));
+  await page.waitForTimeout(600);
+  const s = await page.evaluate(() => __game.world.test.state());
+  assert.equal(s.current, 0, 'still on the first row');
+  await page.evaluate(() => __game.world.test.answer(true));
+  assert.equal((await page.evaluate(() => __game.world.test.state())).current, 1);
+  assert.deepEqual(page.errors, []);
 });
 
 test('the old game save on this iPad is brought over once and left in place', async () => {

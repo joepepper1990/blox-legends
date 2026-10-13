@@ -1,0 +1,300 @@
+{
+  "meta": [
+    {
+      "k": "counter",
+      "n": 2
+    },
+    {
+      "k": "device",
+      "id": "f5f066a9-9c9e-48ab-8e80-be5e67847085",
+      "created": 1791915770834
+    },
+    {
+      "k": "migrations",
+      "keys": [
+        "v1:local"
+      ]
+    },
+    {
+      "k": "profile",
+      "id": "d47451b6-2a70-4727-8ec8-3ba75229ba31",
+      "created": 1791915770836,
+      "mode": "standalone"
+    },
+    {
+      "k": "schema",
+      "v": 2,
+      "app": "0.2.0"
+    }
+  ],
+  "state": {
+    "k": "game",
+    "data": {
+      "v": 1,
+      "name": "Freddie",
+      "coins": 449,
+      "xp": 1470,
+      "owned": [
+        "shirt-blue",
+        "hat-none",
+        "trail-none",
+        "hat-cap",
+        "shirt-red",
+        "trail-sparks"
+      ],
+      "look": {
+        "shirt": "shirt-red",
+        "hat": "hat-cap",
+        "trail": "trail-sparks"
+      },
+      "learn": {
+        "skills": {
+          "m.bonds10": {
+            "n": 18,
+            "c": 17,
+            "ema": 0.93,
+            "streak": 6,
+            "box": 4,
+            "due": 1791475200000,
+            "last": 1790870400000,
+            "ms": 2100
+          },
+          "m.x2": {
+            "n": 22,
+            "c": 21,
+            "ema": 0.95,
+            "streak": 9,
+            "box": 5,
+            "due": 1792684800000,
+            "last": 1790784000000,
+            "ms": 1900
+          },
+          "m.x10": {
+            "n": 4,
+            "c": 4,
+            "ema": 0.9,
+            "streak": 4,
+            "box": 3,
+            "due": 1791129600000,
+            "last": 1790697600000,
+            "ms": 2600
+          },
+          "m.x5": {
+            "n": 9,
+            "c": 6,
+            "ema": 0.71,
+            "streak": 1,
+            "box": 1,
+            "due": 1790871000000,
+            "last": 1790870400000,
+            "ms": 3400
+          },
+          "v.alphaNext": {
+            "n": 12,
+            "c": 10,
+            "ema": 0.82,
+            "streak": 3,
+            "box": 2,
+            "due": 1790956800000,
+            "last": 1790870400000,
+            "ms": 2800
+          },
+          "v.alphaJump": {
+            "n": 3,
+            "c": 1,
+            "ema": 0.45,
+            "streak": 0,
+            "box": 0,
+            "due": 1790870400000,
+            "last": 1790870400000,
+            "ms": 5200
+          },
+          "s.count1": {
+            "n": 7,
+            "c": 7,
+            "ema": 0.94,
+            "streak": 7,
+            "box": 4,
+            "due": 1791475200000,
+            "last": 1790611200000,
+            "ms": 4100
+          },
+          "s.rotY": {
+            "n": 5,
+            "c": 3,
+            "ema": 0.66,
+            "streak": 2,
+            "box": 1,
+            "due": 1790870400000,
+            "last": 1790784000000,
+            "ms": 6100
+          },
+          "m.add20": {
+            "n": 5,
+            "c": 5
+          },
+          "m.bond10": {
+            "n": 14,
+            "c": 12
+          }
+        },
+        "recent": {
+          "maths": [
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1
+          ],
+          "verbal": [
+            1,
+            0,
+            1,
+            1,
+            1
+          ],
+          "spatial": [
+            1,
+            1,
+            0,
+            1
+          ]
+        }
+      },
+      "best": {
+        "obby": 61240,
+        "vault": 88410,
+        "lab": 0
+      },
+      "day": {
+        "date": "2026-10-13",
+        "ms": 0,
+        "answered": 0,
+        "correct": 0,
+        "bonusMin": 0,
+        "stars": {
+          "obby": false,
+          "vault": false,
+          "lab": false
+        },
+        "chest": false
+      },
+      "history": [
+        {
+          "date": "2026-09-28",
+          "ms": 900000,
+          "answered": 50,
+          "correct": 41
+        },
+        {
+          "date": "2026-09-29",
+          "ms": 1500000,
+          "answered": 77,
+          "correct": 66
+        },
+        {
+          "date": "2026-09-30",
+          "ms": 600000,
+          "answered": 31,
+          "correct": 25
+        },
+        {
+          "date": "2026-10-01",
+          "ms": 1260000,
+          "answered": 64,
+          "correct": 55
+        }
+      ],
+      "totals": {
+        "ms": 4260000,
+        "answered": 222,
+        "correct": 187,
+        "runs": 20
+      },
+      "settings": {
+        "readAloud": true,
+        "dailyMin": 25
+      },
+      "created": 1790006400000
+    },
+    "updatedAt": 1791915770864
+  },
+  "ops": [
+    {
+      "d": "f5f066a9-9c9e-48ab-8e80-be5e67847085",
+      "n": 1,
+      "t": 1791915770860,
+      "k": "import.v1",
+      "v": 1,
+      "p": {
+        "key": "v1:local",
+        "name": "Freddie",
+        "coins": 412,
+        "xp": 1380,
+        "answered": 222,
+        "skills": 10
+      }
+    },
+    {
+      "d": "f5f066a9-9c9e-48ab-8e80-be5e67847085",
+      "n": 2,
+      "t": 1791915770862,
+      "k": "run",
+      "v": 1,
+      "p": {
+        "w": "obby",
+        "a": [
+          {
+            "s": "m.x5",
+            "c": 1,
+            "f": 1,
+            "ms": 2900,
+            "coins": 5,
+            "fp": "r0fpm.x5",
+            "t": 1791915770862
+          },
+          {
+            "s": "m.x5",
+            "c": 0,
+            "f": 1,
+            "ms": 5100,
+            "coins": 0,
+            "fp": "r0fpm.x5",
+            "t": 1791915770862
+          },
+          {
+            "s": "m.x5",
+            "c": 1,
+            "f": 0,
+            "ms": 3300,
+            "coins": 1,
+            "fp": "r0fpm.x5",
+            "t": 1791915770862
+          },
+          {
+            "s": "m.x3",
+            "c": 1,
+            "f": 1,
+            "ms": 4100,
+            "coins": 5,
+            "fp": "r0fpm.x3",
+            "t": 1791915770862
+          }
+        ],
+        "s": {
+          "done": true,
+          "right": 7,
+          "total": 8,
+          "timeMs": 71000,
+          "bonus": 64,
+          "star": false
+        }
+      }
+    }
+  ]
+}

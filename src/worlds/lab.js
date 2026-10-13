@@ -233,6 +233,19 @@ export class Lab extends World {
     }
   }
 
+  // Stable hook for automated tests: answer the current puzzle without walking.
+  get test() {
+    return {
+      state: () => ({ current: this.index, total: PUZZLES, hasQ: !!this.puzzle && !this.puzzle.solved, done: this.done }),
+      answer: (correct = true) => {
+        const pz = this.puzzle;
+        const k = correct ? pz.q.answerIndex : pz.pads.findIndex((p, i) => i !== pz.q.answerIndex && p.state === 'idle');
+        this.choose(k);
+      },
+      finish: () => {}, // the lab finishes by itself after the last puzzle
+    };
+  }
+
   finish() {
     if (this.done) return;
     this.done = true;

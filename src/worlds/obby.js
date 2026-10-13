@@ -210,6 +210,20 @@ export class Obby extends World {
     }
   }
 
+  // Stable hook for automated tests: answer the current row without walking.
+  get test() {
+    return {
+      state: () => ({ current: this.current, total: ROWS, hasQ: !!this.rows[this.current]?.q, done: this.done }),
+      answer: (correct = true) => {
+        const row = this.rows[this.current];
+        const panel = row.panels.find((p) => !p.broken && (p.index === row.q.answerIndex) === correct);
+        this.landed(panel.collider);
+        if (!correct) this.later(200, () => this.onFall());
+      },
+      finish: () => this.finish(),
+    };
+  }
+
   finish() {
     if (this.done) return;
     const g = this.game;

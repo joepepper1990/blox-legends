@@ -1,0 +1,29 @@
+{
+  "madeBy": {
+    "app": "0.2.0",
+    "schema": 2
+  },
+  "passphrase": "pine cones",
+  "v1Save": {
+    "coins": 412,
+    "xp": 1380,
+    "skills": 10,
+    "pin": "2468"
+  },
+  "v1Code": {
+    "coins": 95,
+    "xp": 260,
+    "skills": 2
+  },
+  "r0": {
+    "coins": 449,
+    "xp": 1470,
+    "name": "Freddie",
+    "owned": 6,
+    "skills": 10,
+    "ops": 2,
+    "profile": "d47451b6-2a70-4727-8ec8-3ba75229ba31",
+    "device": "f5f066a9-9c9e-48ab-8e80-be5e67847085",
+    "answered": 222
+  }
+}

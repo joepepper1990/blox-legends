@@ -28,7 +28,8 @@ export function mergeV1(current, v1in) {
   if (isFresh(current)) {
     const out = mergeDeep(defaults(), v1);
     out.name = v1.name || current.name;
-    out.settings = { ...out.settings, ...current.settings };
+    // The parent's choices in the old game (daily limit, read-aloud) carry over.
+    out.settings = { ...current.settings, ...v1.settings };
     delete out.settings.pin; // PINs are stored per iPad, hashed (never in game data)
     return out;
   }

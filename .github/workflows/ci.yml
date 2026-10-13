@@ -41,6 +41,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -54,3 +56,23 @@ jobs:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # After every deploy, play the published game in a real browser.
+  live:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Smoke-test the published game (waits for this build to be live)
+        run: |
+          node tools/build.mjs
+          export EXPECT_VERSION=$(node -p "require('./_site/version.json').version")
+          export BASE_URL="${{ needs.deploy.outputs.page_url }}"
+          npm run e2e:live
