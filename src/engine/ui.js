@@ -219,6 +219,21 @@ export class UI {
     return close;
   }
 
+  // "Update ready" button (only shown in the hub, so a run is never interrupted).
+  showUpdate(onTap) {
+    this.updateBtn?.remove();
+    this.updateBtn = null;
+    if (!onTap) return;
+    const b = el('button', 'update-pill', '✨ Update ready! Tap to get the new version');
+    b.addEventListener('click', () => {
+      b.disabled = true;
+      b.textContent = 'Updating…';
+      onTap();
+    });
+    this.root.append(b);
+    this.updateBtn = b;
+  }
+
   hasOverlay() {
     return !!this.root.querySelector('.overlay');
   }

@@ -4,7 +4,7 @@ A Roblox-style game for iPad that quietly trains the skills tested in the Kent T
 Test (11+). Players run, jump and explore a blocky world. Every gate, glass panel and door is a
 question, and an adaptive engine keeps each one pitched at the right level.
 
-## What's in this first version
+## What's in the game now
 
 | World | Looks like | Actually training |
 |---|---|---|
@@ -40,43 +40,63 @@ Tap the gear icon. You'll set a 4-digit PIN the first time. Inside:
 - Progress against the September 2029 target, and the status of every skill.
 - Today's minutes and accuracy.
 - The **daily play limit**, which defaults to 25 minutes. When it runs out the portals "recharge" until tomorrow.
-- Read-aloud on/off, extra time, and backup/restore.
+- Read-aloud on/off, extra time.
+- **Saving and backups** (see below).
+- **Progress from the old game:** paste the backup code from the first version to bring coins, outfits and skill records across. Each code can only be added once.
 
 **Privacy:** no accounts, no ads, no purchases, no chat, and no data leaves the iPad.
 
+## Saving and backups
+
+- **Progress saves on the iPad** in IndexedDB, after every run and every few seconds while playing. Every answer also goes into an append-only learning log, which will later sync between the two iPads.
+- **Daily snapshots** of the whole save are kept for 14 days.
+- **Backup files.** *Grown-ups → Save a backup file* creates a `.bloxbak` file and opens the iPad share sheet: save it to Files or iCloud Drive, or AirDrop it. You can protect it with a passphrase (AES-GCM encryption). Do this every few weeks.
+- **Restore.** *Grown-ups → Restore from a backup file* shows what's in the backup first. Restoring **replaces** the progress on this iPad (it never adds to it, so coins can't be duplicated), and keeps a safety copy of what was there.
+- **First version.** If the first version ran from the same web address, its save is brought over automatically on the first launch and left in place.
+
+## Updates
+
+New versions download in the background as one complete package. A **"✨ Update ready!"** button appears in the hub (never during a run). Tapping it saves, then restarts into the new version, so old and new files are never mixed.
+
 ## Putting it on the iPad
 
-1. Open the game's web address in **Safari** on the iPad.
+1. Open **https://joepepper1990.github.io/blox-legends/** in **Safari** on the iPad.
 2. Tap **Share → Add to Home Screen**.
 3. Open it from the new home-screen icon. It runs full-screen like an app and works offline after the first load.
 
-Progress saves on the iPad. Use **Grown-ups → Backup** now and then to keep a copy.
-
 ## Developing
 
-No build step. It's plain ES modules, with three.js and the Lexend font vendored.
+No build step for the app itself. It's plain ES modules, with three.js and the Lexend font vendored. `tools/build.mjs` copies the files into `_site/` and generates the versioned service worker.
 
 ```sh
-npm test          # question-generator and mastery-engine tests
-npm run serve     # http://localhost:8080
+npm install
+npm test          # unit tests: generators, mastery, physics, level checks, saves, backups
+npm run e2e       # browser tests (Playwright): boot, play, save, backup/restore, v1 import, offline, updates
+npm run serve     # build, then http://localhost:8080
 ```
 
+Every push runs both test suites on GitHub Actions. Pushes to `main` publish to GitHub Pages only if every test passes.
+
 ```
-index.html, styles.css, sw.js, manifest.webmanifest
-src/main.js, src/game.js        game shell, rewards, time limit
-src/engine/                     player, touch controls, camera, UI, sound, speech, effects
+index.html, styles.css, manifest.webmanifest
+src/main.js, src/game.js        game shell, fixed 60 Hz physics loop, rewards, time limit
+src/update.js, tools/           update prompt; build + service-worker template
+src/data/                       IndexedDB store, learning log, backups (.bloxbak), v1 import, fallback store
+src/engine/                     player + physics, touch controls, camera, UI, sound, speech, effects
 src/worlds/                     hub, obby (maths), vault (verbal), lab (spatial)
-src/learning/                   skills, generators, adaptive mastery engine
+src/learning/                   skills, generators, adaptive mastery engine, question fingerprints
 src/shop.js, src/parent.js      shop and grown-ups dashboard
-tests/                          node --test suites
+tests/, tests/e2e/              node --test suites; Playwright browser tests
+docs/PLAN.md                    the three-year development plan
 ```
 
 ## Roadmap
 
-1. Non-verbal reasoning world: pattern locks, series, matrices, odd one out.
-2. Vocabulary pets: synonyms, antonyms and analogies.
-3. Lore Library: short story chapters with comprehension questions.
-4. Year 5 maths: fractions, decimals, percentages, area, angles.
-5. Arena mode for Year 5: Kent-style timed multiple-choice sections and printable papers, plus a Shepway-style mixed on-screen test.
+The full three-year plan is in [`docs/PLAN.md`](docs/PLAN.md). Next releases:
+
+1. **R0 "Safe Harbour"** (this version): hosting, IndexedDB saves, backups, v1 import, fixed-step physics, versioned updates, automated tests.
+2. **R0.6 "Two iPads":** parent and device accounts, learning sync and a server-side coin ledger.
+3. **R0.8 "Learning Core":** skill stages, item classes and the new scheduler.
+4. **R0.9 "Autumn Woods Playable":** 10 mechanics, 16 portals and bosses for Year 3 Autumn.
 
 Licences: three.js (MIT, `vendor/THREE-LICENSE`), Lexend (SIL OFL, `fonts/LEXEND-LICENSE`).

@@ -7,11 +7,9 @@ import { World } from './base.js';
 import { platform, box } from '../engine/blocks.js';
 import { labelSprite } from '../engine/textures.js';
 import { chest, cloud } from './decor.js';
+import { OBBY, rowZ, finishZ as finishZOf, panelX } from './obby-layout.js';
 
-const ROWS = 8;
-const ROW_GAP = 6;
-const FIRST_Z = -8;
-const PANEL = 3;
+const { ROWS, ROW_GAP, FIRST_Z, PANEL, PAD } = OBBY;
 
 export class Obby extends World {
   enter() {
@@ -19,10 +17,10 @@ export class Obby extends World {
     g.setSky('#59b4ff', '#f2fbff', '#e6f6ff', 50, 200);
     this.camDist = 10.5;
     this.startPitch = 0.5;
-    this.killY = -14;
-    this.spawn.set(0, 0.2, 2);
+    this.killY = OBBY.KILL_Y;
+    this.spawn.set(...OBBY.SPAWN);
 
-    platform(this, 12, 1.4, 9, 0x8f9bb3, 0, 0, 0.5);
+    platform(this, PAD.w, PAD.h, PAD.d, 0x8f9bb3, 0, 0, OBBY.START_Z);
 
     // steel beams either side, purely for looks
     const len = ROWS * ROW_GAP + 6;
@@ -37,10 +35,10 @@ export class Obby extends World {
       cloud(this.root, (Math.random() - 0.5) * 40, -10 - Math.random() * 3, FIRST_Z + 6 - Math.random() * (len + 6), 1 + Math.random());
 
     this.rows = [];
-    for (let i = 0; i < ROWS; i++) this.rows.push({ z: FIRST_Z - i * ROW_GAP, panels: [], solved: false, q: null });
+    for (let i = 0; i < ROWS; i++) this.rows.push({ z: rowZ(i), panels: [], solved: false, q: null });
 
-    const finishZ = FIRST_Z - (ROWS - 1) * ROW_GAP - 7.5;
-    platform(this, 12, 1.4, 9, 0xffc531, 0, 0, finishZ);
+    const finishZ = finishZOf();
+    platform(this, PAD.w, PAD.h, PAD.d, 0xffc531, 0, 0, finishZ);
     this.finishChest = chest(this.root, 0, 0, finishZ - 2);
     const finishSign = labelSprite('FINISH!', 1.5, { size: 72, bg: '#ffc531' });
     finishSign.position.set(0, 5, finishZ - 2);
@@ -88,9 +86,8 @@ export class Obby extends World {
     }
     row.panels = [];
     const n = row.q.options.length;
-    const spacing = n === 2 ? 4.6 : 3.8;
     row.q.options.forEach((opt, k) => {
-      const x = (k - (n - 1) / 2) * spacing;
+      const x = panelX(n, k);
       const group = new THREE.Group();
       group.position.set(x, 0, row.z);
       const mat = new THREE.MeshLambertMaterial({

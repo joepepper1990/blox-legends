@@ -1,14 +1,13 @@
-// Progress lives on the iPad (localStorage). There are no accounts and nothing
-// is sent anywhere. The grown-ups panel can copy a backup code and restore it.
-
-const KEY = 'blox-legends-save-v1';
+// Game-state shape and helpers shared by the save stores.
+// The primary store is IndexedDB (src/data/store.js); src/data/local-save.js is
+// the v1-style localStorage fallback for browsers without IndexedDB.
 
 export const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const freshDay = (date) => ({
+export const freshDay = (date) => ({
   date,
   ms: 0,
   answered: 0,
@@ -31,71 +30,30 @@ export function defaults() {
     day: freshDay(today()),
     history: [],
     totals: { ms: 0, answered: 0, correct: 0, runs: 0 },
-    settings: { readAloud: true, dailyMin: 25, pin: '' },
+    settings: { readAloud: true, dailyMin: 25 },
     created: Date.now(),
   };
 }
 
-function merge(base, data) {
+export function mergeDeep(base, data) {
   for (const k of Object.keys(data || {})) {
-    if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k]) && typeof data[k] === 'object')
-      base[k] = merge(base[k], data[k]);
+    if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k]) && data[k] && typeof data[k] === 'object' && !Array.isArray(data[k]))
+      base[k] = mergeDeep(base[k], data[k]);
     else base[k] = data[k];
   }
   return base;
 }
 
-export class Save {
-  constructor() {
-    this.data = defaults();
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) this.data = merge(defaults(), JSON.parse(raw));
-    } catch {
-      /* private mode or blocked storage: play without saving */
-    }
-    this.rollDay();
-    this.dirty = false;
-  }
-
-  rollDay() {
-    const d = today();
-    if (this.data.day.date !== d) {
-      const old = this.data.day;
-      if (old.ms > 0 || old.answered > 0)
-        this.data.history.push({ date: old.date, ms: old.ms, answered: old.answered, correct: old.correct });
-      this.data.history = this.data.history.slice(-120);
-      this.data.day = freshDay(d);
-      this.dirty = true;
-    }
-  }
-
-  write() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(this.data));
-      this.dirty = false;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  exportCode() {
-    return btoa(unescape(encodeURIComponent(JSON.stringify(this.data))));
-  }
-
-  importCode(code) {
-    const parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-    if (!parsed || parsed.v !== 1) throw new Error('Not a Blox Legends backup');
-    this.data = merge(defaults(), parsed);
-    this.rollDay();
-    this.write();
-  }
-
-  reset() {
-    const keep = { settings: this.data.settings, name: this.data.name };
-    this.data = merge(defaults(), keep);
-    this.write();
-  }
+// Start a new day: yesterday's totals go into history. Returns true if changed.
+export function rollDayData(data) {
+  const d = today();
+  if (data.day.date === d) return false;
+  const old = data.day;
+  if (old.ms > 0 || old.answered > 0)
+    data.history.push({ date: old.date, ms: old.ms, answered: old.answered, correct: old.correct });
+  data.history = data.history.slice(-1200);
+  data.day = freshDay(d);
+  return true;
 }
 
 // Levels get a little longer each time.

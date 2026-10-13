@@ -7,9 +7,11 @@ import { Audio } from './engine/audio.js';
 import { Speech } from './engine/speech.js';
 import { FX } from './engine/fx.js';
 import { Player } from './engine/player.js';
+import { PHYS, FixedClock } from './engine/physics.js';
 import { Bolt } from './engine/bolt.js';
 import { gradientTexture } from './engine/textures.js';
-import { Save, levelInfo, today } from './save.js';
+import { levelInfo, today } from './save.js';
+import { fingerprint } from './learning/fingerprint.js';
 import { Mastery } from './learning/index.js';
 import { openShop } from './shop.js';
 import { openParent } from './parent.js';
@@ -21,9 +23,9 @@ import { Lab } from './worlds/lab.js';
 const WORLDS = { hub: Hub, obby: Obby, vault: Vault, lab: Lab };
 
 export class Game {
-  constructor(canvas, uiRoot) {
+  constructor(canvas, uiRoot, store) {
     this.canvas = canvas;
-    this.save = new Save();
+    this.save = store; // IndexedDB store (data/store.js) or the localStorage fallback
     this.mastery = new Mastery(this.save.data.learn);
     this.audio = new Audio();
     this.speech = new Speech();
@@ -69,6 +71,7 @@ export class Game {
     this.started = false;
     this.last = performance.now();
     this.elapsed = 0;
+    this.physicsClock = new FixedClock();
     this.saveTimer = 0;
 
     this.ui.homeBtn.addEventListener('click', () => {
@@ -87,12 +90,17 @@ export class Game {
     window.addEventListener('resize', () => this.resize());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
+        // iPadOS may close a hidden app without warning: log the run so far and save.
+        if (this.save.pending?.length) this.save.endRun(this.worldName, { partial: true });
         this.save.write();
         this.speech.stop();
       }
       this.last = performance.now();
     });
-    window.addEventListener('pagehide', () => this.save.write());
+    window.addEventListener('pagehide', () => {
+      if (this.save.pending?.length) this.save.endRun(this.worldName, { partial: true });
+      this.save.write();
+    });
     this.resize();
     this.refreshHud();
     window.__game = this; // handy for testing in a browser console
@@ -118,6 +126,8 @@ export class Game {
   }
 
   go(name, params = {}) {
+    // Anything answered in the world we're leaving is logged before switching.
+    if (this.save.pending?.length) this.save.endRun(this.worldName, { left: true });
     if (this.world) {
       this.world.exit();
       this.scene.remove(this.world.root);
@@ -141,6 +151,12 @@ export class Game {
     this.snapCamera();
     this.bolt.place(this.player.pos);
     this.ui.setMode({ home: name !== 'hub', shop: name === 'hub' });
+    this.ui.showUpdate(name === 'hub' && this.pendingUpdate ? () => this.pendingUpdate() : null);
+  }
+
+  // Called by update.js when a new version has finished downloading.
+  onUpdateReady() {
+    if (this.worldName === 'hub') this.ui.showUpdate(() => this.pendingUpdate());
   }
 
   snapCamera() {
@@ -155,7 +171,8 @@ export class Game {
 
   frame() {
     const now = performance.now();
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    const rawDt = (now - this.last) / 1000;
+    const dt = Math.min(0.1, rawDt); // for animation only; physics uses the fixed clock
     this.last = now;
     this.elapsed += dt;
     const t = this.elapsed;
@@ -166,19 +183,24 @@ export class Game {
     this.camPitch = Math.max(0.08, Math.min(1.25, this.camPitch + look.dy * 0.0045));
 
     if (this.world) {
-      this.player.update(dt, {
-        move: playing ? move : { x: 0, y: 0 },
-        yaw: this.camYaw,
-        colliders: this.world.colliders,
-      });
-      if (this.player.pos.y < this.world.killY) this.world.onFall();
-      this.checkTriggers();
+      // Fixed 60 Hz physics: identical jumps at 30, 60 or 120 fps.
+      const { steps, alpha } = this.physicsClock.advance(rawDt);
+      const ctl = { move: playing ? move : { x: 0, y: 0 }, yaw: this.camYaw, colliders: this.world.colliders };
+      for (let i = 0; i < steps && this.world; i++) {
+        const world = this.world;
+        this.player.step(PHYS.STEP, ctl);
+        if (this.player.pos.y < world.killY) world.onFall();
+        if (this.world !== world) break; // a trigger switched worlds
+        this.checkTriggers();
+        ctl.colliders = this.world.colliders;
+      }
+      this.player.render(alpha, dt);
       if (playing) for (const tap of taps) this.handleTap(tap);
       this.world.update(dt, t);
     }
 
-    // camera
-    const target = this.player.pos.clone().add(new THREE.Vector3(0, 2, 0));
+    // camera follows the smoothed (drawn) position
+    const target = this.player.group.position.clone().add(new THREE.Vector3(0, 2, 0));
     let desired;
     let lookAt = target;
     if (this.camOverride) {
@@ -319,10 +341,13 @@ export class Game {
       }
     }
     this.save.dirty = true;
+    const coins = correct ? (firstTry ? 5 : 1) : 0;
+    // Every attempt goes into the append-only learning log (plan §10.2).
+    this.save.recordAttempt({ s: q.skill, c: correct ? 1 : 0, f: firstTry ? 1 : 0, ms: Math.round(ms || 0), fp: fingerprint(q), coins });
     if (correct) {
       this.audio.correct();
       this.bolt.cheer();
-      this.award(firstTry ? 5 : 1, firstTry ? 10 : 3, at);
+      this.award(coins, firstTry ? 10 : 3, at);
     } else {
       this.audio.wrong();
     }
@@ -347,7 +372,8 @@ export class Game {
     }
     this.award(bonus, 30);
     this.refreshHud();
-    this.save.write();
+    // Log the finished run (attempts + result) and save the state in one transaction.
+    this.save.endRun(key, { done: true, right, total, timeMs: Math.round(timeMs || 0), bonus, star: firstStar });
     this.audio.fanfare();
     this.fx.burst(this.player.pos.clone().add(new THREE.Vector3(0, 2, 0)), undefined, 60, 12);
     const fmt = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -435,6 +461,7 @@ export class Game {
           }
           this.audio.unlock();
           this.speech.unlock();
+          this.save.requestPersist?.(); // ask iPadOS to protect our storage (needs a tap)
           this.audio.click();
           close();
           this.started = true;

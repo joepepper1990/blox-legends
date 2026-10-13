@@ -859,3 +859,21 @@ button {
     opacity: 0;
   }
 }
+
+/* update prompt (hub only) */
+.update-pill {
+  position: absolute;
+  top: calc(84px + var(--safe-t));
+  right: calc(14px + var(--safe-r));
+  max-width: 300px;
+  text-align: left;
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 20px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 3px solid var(--ink);
+  box-shadow: var(--shadow);
+  z-index: 5;
+}

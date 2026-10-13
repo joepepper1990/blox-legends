@@ -2,6 +2,16 @@
 // status, the daily time limit, read-aloud, and backup/restore.
 import { AREAS, SKILLS } from './learning/index.js';
 import { el } from './engine/ui.js';
+import { createBackup, readEnvelope, decodeBackup, restoreBackup, deliverFile } from './data/backup.js';
+
+// PIN helpers: hashed on this iPad (IndexedDB store); plain only in the
+// basic localStorage fallback, exactly as v1 did.
+const pinStore = (game) => ({
+  has: () => (game.save.hasPin ? game.save.hasPin() : !!game.save.data.settings.pin),
+  set: async (pin) => (game.save.setPin ? game.save.setPin(pin) : ((game.save.data.settings.pin = pin), game.save.write())),
+  check: async (pin) => (game.save.verifyPin ? game.save.verifyPin(pin) : pin === game.save.data.settings.pin),
+  clear: async () => (game.save.clearPin ? game.save.clearPin() : ((game.save.data.settings.pin = ''), game.save.write())),
+});
 
 export function openParent(game, { grant = false } = {}) {
   if (game.ui.hasOverlay()) return;
@@ -10,7 +20,8 @@ export function openParent(game, { grant = false } = {}) {
     (p, close) => {
       let entered = '';
       let first = '';
-      const setting = !d.settings.pin;
+      const pins = pinStore(game);
+      const setting = !pins.has();
 
       const pinScreen = (msg) => {
         p.innerHTML = `<h2>Grown-ups only</h2><p class="muted">${msg}</p>
@@ -33,7 +44,7 @@ export function openParent(game, { grant = false } = {}) {
         p.querySelector('.row').append(cancel);
       };
 
-      const submit = () => {
+      const submit = async () => {
         if (setting) {
           if (!first) {
             first = entered;
@@ -45,11 +56,10 @@ export function openParent(game, { grant = false } = {}) {
             entered = '';
             return pinScreen('Those didn’t match. Choose a 4-digit PIN.');
           }
-          d.settings.pin = entered;
-          game.save.write();
+          await pins.set(entered);
           return grant ? grantScreen() : dashboard();
         }
-        if (entered === d.settings.pin) return grant ? grantScreen() : dashboard();
+        if (await pins.check(entered)) return grant ? grantScreen() : dashboard();
         entered = '';
         pinScreen('Wrong PIN — try again.');
       };
@@ -115,12 +125,17 @@ export function openParent(game, { grant = false } = {}) {
           <div class="toggle"><span>Read questions aloud</span><input type="checkbox" class="aloud"></div>
           <div class="toggle"><span>Player name</span><input type="text" class="pname" maxlength="16" style="width:220px"></div>
           <div class="row"><button class="btn small more">+10 minutes today</button><button class="btn ghost small newpin">Change PIN</button></div>
-          <h3>Backup</h3>
-          <p class="muted" style="font-size:15px">Copy this code somewhere safe (e.g. Notes). If the iPad is reset, paste it back to restore progress.</p>
-          <textarea class="code" readonly></textarea>
-          <div class="row"><button class="btn small copy">Copy code</button></div>
-          <textarea class="restore" placeholder="Paste a backup code here"></textarea>
-          <div class="row"><button class="btn small ghost do-restore">Restore from code</button><button class="btn small ghost reset" style="background:#ffe1dc">Reset all progress</button></div>`;
+          <h3>Saving and backups</h3>
+          <p class="muted save-status" style="font-size:15px">Checking…</p>
+          <div class="toggle"><span>Protect the backup with a passphrase</span><input type="checkbox" class="usepass"></div>
+          <input type="password" class="pass" placeholder="Passphrase — write it down somewhere safe" style="display:none" autocomplete="new-password">
+          <div class="row"><button class="btn small do-backup">Save a backup file</button><button class="btn small ghost pick-restore">Restore from a backup file</button>
+            <input type="file" class="restore-file" accept=".bloxbak,application/octet-stream,application/gzip" hidden></div>
+          <div class="restore-area"></div>
+          <h3>Progress from the old game</h3>
+          <p class="muted" style="font-size:15px">In the old version, open Grown-ups → Backup and copy the code. Paste it here. Each code can only be added once.</p>
+          <textarea class="v1code" placeholder="Paste the old game's backup code here"></textarea>
+          <div class="row"><button class="btn small ghost do-v1">Bring progress across</button><button class="btn small ghost reset" style="background:#ffe1dc">Reset all progress</button></div>`;
         const closeBtn = el('button', 'btn green small', 'Back to game');
         closeBtn.onclick = close;
         p.querySelector('.close-slot').append(closeBtn);
@@ -155,48 +170,133 @@ export function openParent(game, { grant = false } = {}) {
           game.save.write();
           e.target.textContent = 'Added 10 minutes ✓';
         };
-        p.querySelector('.newpin').onclick = () => {
-          d.settings.pin = '';
-          game.save.write();
+        p.querySelector('.newpin').onclick = async () => {
+          await pins.clear();
           close();
           openParent(game);
         };
-        const code = p.querySelector('.code');
-        code.value = game.save.exportCode();
-        p.querySelector('.copy').onclick = async (e) => {
-          try {
-            await navigator.clipboard.writeText(code.value);
-            e.target.textContent = 'Copied ✓';
-          } catch {
-            code.select();
-            e.target.textContent = 'Select and copy the text above';
-          }
+        const refreshGame = () => {
+          game.mastery.state = game.save.data.learn;
+          game.mastery.state.skills ||= {};
+          game.mastery.state.recent ||= {};
+          game.player.setLook(game.save.data.look);
+          game.player.setName(game.save.data.name);
+          game.refreshHud();
         };
-        p.querySelector('.do-restore').onclick = (e) => {
+
+        // storage status
+        (async () => {
+          const st = game.save;
+          const bits = [];
+          if (st.mode === 'idb') {
+            bits.push('Saved on this iPad (IndexedDB)');
+            bits.push(st.persisted ? 'protected from storage clean-up' : 'not yet protected from storage clean-up (open it from the Home Screen icon, and save backups)');
+            const snaps = await st.listSnapshots();
+            const daily = snaps.find((x) => x.id.startsWith('day-'));
+            if (daily) bits.push(`last daily snapshot ${new Date(daily.created).toLocaleDateString('en-GB')}`);
+            bits.push(`iPad ID ${st.deviceId.slice(0, 8)}`);
+          } else {
+            bits.push('Saving in basic mode (IndexedDB unavailable)');
+          }
+          if (st.warning) bits.push(st.warning);
+          const el2 = p.querySelector('.save-status');
+          if (el2) el2.textContent = `${bits.join(' · ')}.`;
+        })();
+
+        const usePass = p.querySelector('.usepass');
+        const pass = p.querySelector('.pass');
+        usePass.onchange = () => (pass.style.display = usePass.checked ? '' : 'none');
+
+        p.querySelector('.do-backup').onclick = async (e) => {
+          const btn = e.currentTarget;
+          if (usePass.checked && pass.value.length < 6) {
+            btn.textContent = 'Passphrase needs 6+ characters';
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Preparing…';
           try {
-            game.save.importCode(p.querySelector('.restore').value);
-            game.mastery.state = game.save.data.learn;
-            game.player.setLook(game.save.data.look);
-            game.player.setName(game.save.data.name);
-            game.refreshHud();
-            e.target.textContent = 'Restored ✓';
-          } catch {
-            e.target.textContent = 'That code didn’t work';
+            if (game.save.pending?.length) await game.save.endRun(game.worldName, { partial: true });
+            await game.save.write();
+            const { bytes, filename } = await createBackup(game.save, { passphrase: usePass.checked ? pass.value : undefined });
+            const how = await deliverFile(bytes, filename);
+            btn.textContent = how === 'cancelled' ? 'Save a backup file' : 'Backup saved ✓';
+          } catch (err) {
+            console.error(err);
+            btn.textContent = 'Backup failed — try again';
+          }
+          btn.disabled = false;
+        };
+
+        const fileInput = p.querySelector('.restore-file');
+        p.querySelector('.pick-restore').onclick = () => fileInput.click();
+        fileInput.onchange = async () => {
+          const area = p.querySelector('.restore-area');
+          const file = fileInput.files?.[0];
+          fileInput.value = '';
+          if (!file) return;
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          let env;
+          try {
+            env = await readEnvelope(bytes);
+          } catch (err) {
+            area.innerHTML = `<p><b>${escapeHtml(err.message)}</b></p>`;
+            return;
+          }
+          const sm = env.summary || {};
+          area.innerHTML = `<div class="panel" style="width:100%;animation:none;padding:14px 18px;margin-top:10px">
+              <b>Backup from ${escapeHtml(new Date(env.created).toLocaleString('en-GB'))}</b>
+              <p style="margin:6px 0">${escapeHtml(sm.name || 'Player')} · level ${sm.level ?? '?'} · ${sm.coins ?? '?'} coins · ${sm.answered ?? '?'} questions answered</p>
+              <p class="muted" style="font-size:15px;margin:6px 0">Restoring <b>replaces</b> the progress on this iPad with this backup. A safety copy of the current progress is kept on this iPad first.</p>
+              ${env.crypto ? '<input type="password" class="rpass" placeholder="Backup passphrase" autocomplete="off">' : ''}
+              <div class="row"><button class="btn small do-restore" style="background:#e8423f">Restore this backup</button></div>
+              <p class="restore-msg"></p></div>`;
+          let armed = false;
+          area.querySelector('.do-restore').onclick = async (ev) => {
+            const btn = ev.currentTarget;
+            const msg = area.querySelector('.restore-msg');
+            if (!armed) {
+              armed = true;
+              btn.textContent = 'Tap again to replace progress';
+              return;
+            }
+            btn.disabled = true;
+            try {
+              const decoded = await decodeBackup(bytes, { passphrase: area.querySelector('.rpass')?.value });
+              await restoreBackup(game.save, decoded);
+              msg.textContent = 'Restored ✓ Restarting…';
+              setTimeout(() => location.reload(), 600);
+            } catch (err) {
+              msg.textContent = err.message || 'That backup could not be restored.';
+              btn.disabled = false;
+              armed = false;
+              btn.textContent = 'Restore this backup';
+            }
+          };
+        };
+
+        p.querySelector('.do-v1').onclick = async (e) => {
+          const btn = e.currentTarget;
+          const code = p.querySelector('.v1code').value.trim();
+          if (!code) return;
+          try {
+            const sum = await game.save.importV1Code(code);
+            refreshGame();
+            btn.textContent = `Added ✓ (${sum.coins} coins, ${sum.answered} answers)`;
+            p.querySelector('.v1code').value = '';
+          } catch (err) {
+            btn.textContent = /already/.test(err.message) ? 'Already added before' : 'That code didn’t work';
           }
         };
         let resetArmed = false;
-        p.querySelector('.reset').onclick = (e) => {
+        p.querySelector('.reset').onclick = async (e) => {
           if (!resetArmed) {
             resetArmed = true;
             e.target.textContent = 'Tap again to really reset';
             return;
           }
-          game.save.reset();
-          game.mastery.state = game.save.data.learn;
-          game.mastery.state.skills ||= {};
-          game.mastery.state.recent ||= {};
-          game.player.setLook(game.save.data.look);
-          game.refreshHud();
+          await game.save.reset();
+          refreshGame();
           e.target.textContent = 'Progress reset';
         };
       };
