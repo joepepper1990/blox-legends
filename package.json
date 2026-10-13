@@ -1,6 +1,6 @@
 {
   "name": "blox-legends",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Roblox-style iPad learning game that trains 11+ (Kent Test / Shepway Test) skills.",
