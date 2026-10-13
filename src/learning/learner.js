@@ -20,7 +20,8 @@
 //   sk[id]   per skill: n, c, b (band), bs (band streak), pf (first-try
 //            rights), ev (last evidence results), ms {intro, prac, acc, app,
 //            ret, c21, mas} (days), uv (Accurate unverified, from v1), rf
-//            (needs refresh), chk {step, due, gapFrom, res, pr}, tr {mech: n},
+//            (needs refresh), chk {step, due, gapFrom, res, pr}, tr {mech:
+//            [right, asked]} and tl (last transfer answers, [right, mech]),
 //            fa (recent fact results), fl (fluency samples), last (day)
 //   it[id][key]  facts and authored items: [box, due, lastDay, n, c, lastRightDay]
 //   mis[id][misId]  [n, lastDay, recheckDay, state: open|followed|fixed]
@@ -33,7 +34,10 @@ export const RULES = {
   practising: 3, // first-try rights (not rapid guesses)
   accurate: { window: 8, need: 7 }, // unseen, first-try, at or above the target band
   facts: { days: 30, coverage: 0.8, accuracy: 0.9, window: 20, minAnswers: 10 },
-  applied: 3, // right transfer answers
+  // Over the last 8 transfer answers, rights minus twice the wrongs reach 4:
+  // a 1-in-3 guesser gets there about 1 time in 22 (like passing a check by
+  // luck); someone right 85% of the time after about 7 answers.
+  applied: { window: 8, score: 4 },
   checkItems: 3,
   gaps: [3, 7, 21], // retention checks after Accurate (days without practice)
   reviews: [30, 60, 90], // calendar reviews after Mastered
@@ -52,7 +56,7 @@ export function freshLearn() {
   return { v: LEARN_V, sk: {}, it: {}, mis: {}, rc: {}, al: { d: 0, n: {} }, cnt: 0 };
 }
 export function freshSkill() {
-  return { n: 0, c: 0, b: 1, bs: 0, pf: 0, ev: [], ms: {}, uv: 0, rf: 0, chk: null, tr: {}, fa: [], fl: [], last: null };
+  return { n: 0, c: 0, b: 1, bs: 0, pf: 0, ev: [], ms: {}, uv: 0, rf: 0, chk: null, tr: {}, tl: [], fa: [], fl: [], last: null };
 }
 
 const push = (arr, v, max) => {
@@ -121,7 +125,11 @@ export function applyAttempt(state, a, reg) {
     if (a.c && a.f && Number.isFinite(a.fl) && a.fl > 0) sk.fl = push(sk.fl, a.fl, RULES.fluency.keep);
 
     // ---- transfer answers towards Applied
-    if (a.pu === 'transfer' && a.c && solid(a) && a.m) sk.tr[a.m] = (sk.tr[a.m] || 0) + 1;
+    if (a.pu === 'transfer' && solid(a) && a.m) {
+      const [r, n] = sk.tr[a.m] || [0, 0];
+      sk.tr[a.m] = [r + (a.c ? 1 : 0), n + 1];
+      sk.tl = push(sk.tl || [], [a.c ? 1 : 0, a.m], RULES.applied.window);
+    }
   }
 
   // ---- milestones that evidence can reach
@@ -155,15 +163,18 @@ export function applyAttempt(state, a, reg) {
 
   // ---- misconceptions
   let mis = L.mis;
-  if ((!a.c && a.mis) || (a.c && a.tm)) {
+  if ((!a.c && a.mis) || (a.tm && !a.rg)) {
     const mine = { ...(L.mis[a.s] || {}) };
     if (!a.c && a.mis) {
       const [n] = mine[a.mis] || [0];
       mine[a.mis] = [n + 1, d, d + 1, 'open'];
     }
-    if (a.c && a.tm && mine[a.tm] && mine[a.tm][3] !== 'fixed') {
-      const [n, last, recheck] = mine[a.tm];
-      mine[a.tm] = [n, last, recheck, d >= recheck ? 'fixed' : 'followed'];
+    if (a.tm && mine[a.tm] && mine[a.tm][3] !== 'fixed') {
+      const [n, last, recheck, state] = mine[a.tm];
+      // right: followed up today, or fixed on a later day; wrong (in any
+      // way): it stays open and is rechecked tomorrow
+      if (a.c) mine[a.tm] = [n, last, recheck, d >= recheck ? 'fixed' : 'followed'];
+      else if (a.mis !== a.tm) mine[a.tm] = [n, last, d + 1, state === 'followed' ? 'open' : state];
     }
     mis = { ...L.mis, [a.s]: mine };
   }
@@ -191,8 +202,10 @@ function reachedAccurate(sk, info, items, d, reg, id) {
 }
 
 function appliedReached(sk, info) {
-  const counts = Object.values(sk.tr);
-  return sum(counts) >= RULES.applied && counts.filter((n) => n > 0).length >= (info.appliedMechs || 2);
+  const last = sk.tl || [];
+  const right = last.filter((x) => x[0]);
+  const score = right.length - 2 * (last.length - right.length);
+  return score >= RULES.applied.score && new Set(right.map((x) => x[1])).size >= (info.appliedMechs || 2);
 }
 
 function masteredReached(sk, info, d, reg) {

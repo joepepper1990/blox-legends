@@ -83,16 +83,29 @@ test('facts are Accurate on coverage (80% of items right in 30 days) and accurac
   assert.notEqual(later.sk['f.one'].ms.acc, 40);
 });
 
-test('Applied needs 3 right transfer answers across the required number of worlds', () => {
+test('Applied: over the last 8 transfer answers, rights minus twice the wrongs reach 4, in enough worlds', () => {
   let s = accurate();
-  s = run(times(3, { pu: 'transfer', m: 'pattern-plates' }), s);
+  s = run(times(4, { pu: 'transfer', m: 'pattern-plates' }), s);
   assert.equal(stage(s), 'accurate', 'one world only');
   s = run([A({ pu: 'transfer', m: 'choice-path' })], s);
   assert.equal(stage(s), 'applied');
   // a skill that may use one world
   let a = run(times(8, { s: 'a.one' }));
-  a = run(times(3, { s: 'a.one', pu: 'transfer', m: 'choice-path' }), a);
+  a = run(times(4, { s: 'a.one', pu: 'transfer', m: 'choice-path' }), a);
   assert.equal(stage(a, 'a.one'), 'applied');
+  // three lucky rights among many guesses don't count
+  let g = accurate();
+  g = run([...times(3, { pu: 'transfer', m: 'choice-path' }), ...times(3, { pu: 'transfer', m: 'pattern-plates' })].map((x, i) => ({ ...x, c: i % 2 ? 0 : 1 })), g);
+  g = run(times(3, { pu: 'transfer', m: 'choice-path', c: 0 }), g);
+  assert.equal(stage(g), 'accurate', '3 of 9 is guessing');
+  // a guesser (1 in 3) rarely gets there in 30 transfer questions
+  let lucky = 0;
+  const rng = seeded(9);
+  for (let i = 0; i < 400; i++) {
+    const list = Array.from({ length: 30 }, (_, j) => A({ pu: 'transfer', m: j % 2 ? 'choice-path' : 'pattern-plates', c: rng() < 1 / 3 ? 1 : 0 }));
+    if (stage(run(list, accurate())) === 'applied') lucky++;
+  }
+  assert.ok(lucky / 400 < 0.07, `guessers reached Applied ${lucky} times in 400`);
 });
 
 test('checks at 3, 7 and 21 days: Retained, then Mastered no sooner than 28 days', () => {
