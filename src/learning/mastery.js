@@ -9,7 +9,7 @@
 //   box, due  spaced-repetition box (0..5) and when it's next due
 //   ms        smoothed answer time in milliseconds
 
-import { SKILLS, SKILL_BY_ID, skillsInArea } from './skills.js';
+import { SKILL_BY_ID, skillsInArea, liveSkills } from './skills.js';
 import { clamp } from './rng.js';
 
 const MIN = 60 * 1000;
@@ -127,6 +127,6 @@ export class Mastery {
   }
 
   summary() {
-    return SKILLS.map((s) => ({ ...s, status: this.status(s.id), rec: this.state.skills[s.id] || freshRecord() }));
+    return liveSkills().map((s) => ({ ...s, status: this.status(s.id), rec: this.state.skills[s.id] || freshRecord() }));
   }
 }

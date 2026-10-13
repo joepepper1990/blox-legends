@@ -59,7 +59,7 @@ function verbalAnswer(q) {
   throw new Error(`Unparsed verbal prompt: ${p}`);
 }
 
-for (const skill of SKILLS) {
+for (const skill of SKILLS.filter((s) => s.status === 'live')) {
   test(`${skill.id}: every question has exactly one right answer`, () => {
     let made = 0;
     for (const lvl of LEVELS)
