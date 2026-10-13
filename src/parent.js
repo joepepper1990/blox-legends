@@ -1,7 +1,6 @@
 // Grown-ups area, behind a 4-digit PIN: progress towards the test, every skill's
 // status, the daily time limit, read-aloud, and backup/restore.
-import { AREAS } from './learning/index.js';
-import { skillSummary, areaProgress } from './learning/progress.js';
+import { skillSummary, zoneProgress, retention, termTracker, ZONE_LIST, REALM_OPTIONS } from './learning/progress.js';
 import { el } from './engine/ui.js';
 import { createBackup, readEnvelope, decodeBackup, restoreBackup, deliverFile } from './data/backup.js';
 
@@ -14,7 +13,9 @@ const pinStore = (game) => ({
   clear: async () => (game.save.clearPin ? game.save.clearPin() : ((game.save.data.settings.pin = ''), game.save.write())),
 });
 
-export function openParent(game, { grant = false } = {}) {
+// `skipPin` is only used to redraw the dashboard after a setting changes,
+// once the PIN has already been given.
+export function openParent(game, { grant = false, skipPin = false } = {}) {
   if (game.ui.hasOverlay()) return;
   const d = game.save.data;
   game.ui.overlay(
@@ -89,24 +90,41 @@ export function openParent(game, { grant = false } = {}) {
         const mins = Math.round(d.day.ms / 60000);
         const acc = (c, n) => (n ? `${Math.round((c / n) * 100)}%` : '—');
         const days = new Set([...d.history.map((h) => h.date), d.day.ms > 0 ? d.day.date : null].filter(Boolean)).size;
-        const areaRows = Object.entries(AREAS)
-          .map(([key, a]) => {
-            const pr = areaProgress(learn, key);
-            return `<div class="area-row"><b>${a.name}</b><div class="bar"><i style="width:${Math.round(pr.pct * 100)}%"></i></div><span>${pr.secure}/${pr.total} secure</span></div>`;
-          })
+        const summary = skillSummary(learn);
+        const zoneRows = ZONE_LIST.map(([key, z]) => {
+          if (key === 'word') return `<div class="area-row"><b>${z.name}</b><div class="bar"><i style="width:0%"></i></div><span>coming soon</span></div>`;
+          const pr = zoneProgress(learn, key);
+          return `<div class="area-row"><b>${z.name}</b><div class="bar"><i style="width:${Math.round(pr.pct * 100)}%"></i></div><span>${pr.secure}/${pr.total} secure</span></div>`;
+        }).join('');
+        const stageTag = (s) =>
+          !s.live
+            ? '<span class="tag waiting">Word portals</span>'
+            : `<span class="tag ${s.stage}">${s.stage}${s.unverified ? ' (to check)' : ''}</span>${s.refresh ? ' <span class="tag refresh">needs refresh</span>' : ''}`;
+        const skillRows = ZONE_LIST.map(([key, z]) => {
+          const rows = summary
+            .filter((s) => s.zone === key)
+            .map(
+              (s) =>
+                `<tr><td>${s.name}</td><td>${stageTag(s)}</td><td>${s.n}</td><td>${s.newRate}</td><td>${s.recallRate}</td><td>${s.ms ? `${(s.ms / 1000).toFixed(1)}s` : '—'}</td><td>${s.mis.map((m) => `<span class="tag mis">${escapeHtml(m.name)}</span>`).join(' ')}</td></tr>`,
+            )
+            .join('');
+          return `<h3>${z.name}</h3><table><tr><th>Skill</th><th>Stage</th><th>Tries</th><th>New questions</th><th>Remembered after a gap</th><th>Speed</th><th>Mistakes to watch</th></tr>${rows}</table>`;
+        }).join('');
+        const tt = termTracker(learn, new Date(), d.prefs || {}, { startedAt: d.created });
+        const ret = retention(learn);
+        const objRows = tt.objectives
+          .map(
+            (o) =>
+              `<tr><td>${escapeHtml(o.text)}</td><td>${o.waiting ? '<span class="tag waiting">Word portals</span>' : `<span class="tag obj-${o.status.replace(' ', '-')}">${o.status}</span>`}</td><td class="muted" style="font-size:14px">${o.skills.map((s) => `${escapeHtml(s.name)}: ${s.stage}${s.unverified ? ' (to check)' : ''}`).join('<br>')}</td></tr>`,
+          )
           .join('');
-        const skillRows = Object.entries(AREAS)
-          .map(([key, a]) => {
-            const rows = skillSummary(learn)
-              .filter((s) => s.area === key)
-              .map(
-                (s) =>
-                  `<tr><td>${s.name}</td><td><span class="tag ${s.stage}">${s.stage}${s.unverified ? ' (to check)' : ''}${s.refresh ? ' · needs refresh' : ''}</span></td><td>${s.n}</td><td>${acc(s.c, s.n)}</td><td>${s.ms ? `${(s.ms / 1000).toFixed(1)}s` : '—'}</td></tr>`,
-              )
-              .join('');
-            return `<h3>${a.name}</h3><table><tr><th>Skill</th><th>Status</th><th>Tries</th><th>Right first time</th><th>Avg time</th></tr>${rows}</table>`;
-          })
-          .join('');
+        const tracker = `
+          <h3>Term Tracker</h3>
+          <p><b>Year ${tt.yearGroup}, ${tt.term} term${tt.holiday ? ' (holiday)' : ''}</b> — ${escapeHtml(tt.realmName)}${tt.override ? ' (chosen by you)' : ` · ${Math.round(tt.progress * 100)}% through the term`}</p>
+          <p>Objectives secure: <b>${tt.actual} of ${tt.total}</b> (about ${tt.expected} expected by now, for the part of the term he’s been playing) — <b class="verdict">${tt.verdict}</b></p>
+          <table><tr><th>This term’s objectives</th><th>Status</th><th>Skills</th></tr>${objRows}</table>
+          <p class="muted" style="font-size:15px">“Secure” means every skill for it is at least Accurate (checked). Word objectives open with the Word portals in the next update, so they aren’t counted as behind.</p>
+          <p class="muted" style="font-size:15px">Remembered after a gap: ${ret.total ? `${ret.passed} of ${ret.total} checks passed` : 'no checks yet'}. Percentages show a range (the likely true value); they appear once there are 5 or more answers.</p>`;
         p.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <h2 style="margin:0">${escapeHtml(d.name || 'Player')}’s progress</h2>
@@ -116,14 +134,18 @@ export function openParent(game, { grant = false } = {}) {
           <h3>Today</h3>
           <p>${mins} min played${d.settings.dailyMin ? ` of ${d.settings.dailyMin + d.day.bonusMin}` : ''} · ${d.day.answered} questions · ${acc(d.day.correct, d.day.answered)} right first time</p>
           <p class="muted">All time: ${Math.round(d.totals.ms / 60000)} min over ${days} day${days === 1 ? '' : 's'} · ${d.totals.answered} questions · ${acc(d.totals.correct, d.totals.answered)} right first time</p>
+          ${tracker}
           <h3>Skill map</h3>
-          ${areaRows}
+          ${zoneRows}
           <p class="muted" style="font-size:15px">Each skill goes: introduced → practising → accurate → applied (used in a new setting) → retained (remembered after a gap) → mastered. Skills from the old game start as “accurate (to check)” until a short check confirms them.</p>
           ${skillRows}
           <h3>Settings</h3>
           <div class="toggle"><span>Daily play limit</span><select class="limit" style="width:auto"></select></div>
           <div class="toggle"><span>Read questions aloud</span><input type="checkbox" class="aloud"></div>
           <div class="toggle"><span>Player name</span><input type="text" class="pname" maxlength="16" style="width:220px"></div>
+          <div class="toggle"><span>In Year 3 from September</span><select class="cohort" style="width:auto"></select></div>
+          <div class="toggle"><span>Term (if the school’s dates differ)</span><select class="termover" style="width:auto"></select></div>
+          <div class="toggle"><span>New learning ahead of school</span><select class="lead" style="width:auto"></select></div>
           <div class="row"><button class="btn small more">+10 minutes today</button><button class="btn ghost small newpin">Change PIN</button></div>
           <h3>Saving and backups</h3>
           <p class="muted save-status" style="font-size:15px">Checking…</p>
@@ -156,6 +178,45 @@ export function openParent(game, { grant = false } = {}) {
         aloud.onchange = () => {
           d.settings.readAloud = aloud.checked;
           game.speech.enabled = aloud.checked;
+          game.save.write();
+        };
+        d.prefs ||= { cohort: 2026, termOverride: '' };
+        const cohort = p.querySelector('.cohort');
+        for (const y of [2025, 2026, 2027, 2028]) {
+          const o = el('option', '', `${y}`);
+          o.value = String(y);
+          if (y === (d.prefs.cohort ?? 2026)) o.selected = true;
+          cohort.append(o);
+        }
+        const termover = p.querySelector('.termover');
+        for (const r of [{ id: '', name: 'Work it out from the date' }, ...REALM_OPTIONS]) {
+          const o = el('option', '', r.name);
+          o.value = r.id;
+          if (r.id === (d.prefs.termOverride || '')) o.selected = true;
+          termover.append(o);
+        }
+        const lead = p.querySelector('.lead');
+        for (const [v, t] of [[0, 'None (only this term)'], [1, 'Up to one term'], [2, 'Up to two terms']]) {
+          const o = el('option', '', t);
+          o.value = String(v);
+          if (v === (d.settings.maxLead ?? 1)) o.selected = true;
+          lead.append(o);
+        }
+        const rerender = () => {
+          game.save.write();
+          close();
+          openParent(game, { skipPin: true });
+        };
+        cohort.onchange = () => {
+          d.prefs.cohort = Number(cohort.value);
+          rerender();
+        };
+        termover.onchange = () => {
+          d.prefs.termOverride = termover.value;
+          rerender();
+        };
+        lead.onchange = () => {
+          d.settings.maxLead = Number(lead.value);
           game.save.write();
         };
         const pname = p.querySelector('.pname');
@@ -299,7 +360,8 @@ export function openParent(game, { grant = false } = {}) {
         };
       };
 
-      pinScreen(setting ? 'Choose a 4-digit PIN so only grown-ups can open this.' : 'Type your PIN.');
+      if (skipPin && !setting) dashboard();
+      else pinScreen(setting ? 'Choose a 4-digit PIN so only grown-ups can open this.' : 'Type your PIN.');
     },
     {},
   );

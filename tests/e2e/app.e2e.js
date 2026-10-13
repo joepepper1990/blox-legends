@@ -446,3 +446,21 @@ test('a skill he is accurate at comes back in another world as a transfer questi
   assert.ok(got.tl >= 1, 'counted towards Applied');
   assert.deepEqual(page.errors, []);
 });
+
+test('the grown-ups see each skill’s stage, the Term Tracker, and can set the school year', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await startPlaying(page);
+  await playRun(page, 'vault');
+  await openDashboard(page);
+  const text = await page.locator('.parent').innerText();
+  assert.match(text, /Term Tracker/);
+  assert.match(text, /Year 3, Autumn term/);
+  assert.match(text, /Objectives secure: \d+ of \d+/);
+  assert.match(text, /introduced|practising/, 'stages shown');
+  assert.match(text, /Word portals/);
+  await page.locator('.parent select.cohort').selectOption('2025');
+  await page.waitForFunction(() => document.querySelector('.parent')?.innerText.includes('Year 4'));
+  assert.equal(await page.evaluate(() => __game.save.data.prefs.cohort), 2025);
+  assert.deepEqual(page.errors, []);
+});

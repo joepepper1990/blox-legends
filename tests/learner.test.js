@@ -279,3 +279,25 @@ test('migration never throws, whatever it is given', () => {
     assert.ok(up.sk && up.mig);
   }
 });
+
+test('the Term Tracker counts only the part of the term he has been playing', async () => {
+  const { termTracker } = await import('../src/learning/progress.js');
+  const { wilson, rateText } = await import('../src/learning/stats.js');
+  const date = new Date(2026, 9, 13, 12); // mid-October, Year 3 Autumn
+  const fresh = freshLearn();
+  const late = termTracker(fresh, date, { cohort: 2026 }, { startedAt: date.getTime() - 86400000 });
+  assert.equal(late.realm, 'y3-aut');
+  assert.equal(late.yearGroup, 3);
+  assert.equal(late.expected, 0, 'started yesterday: nothing expected yet');
+  assert.equal(late.verdict, 'on track');
+  const early = termTracker(fresh, date, { cohort: 2026 }, { startedAt: new Date(2026, 8, 3).getTime() });
+  assert.ok(early.expected > 0 && early.verdict !== 'on track');
+  assert.ok(early.objectives.filter((o) => o.zone === 'word').every((o) => o.waiting), 'Word waits for its portals');
+  assert.equal(termTracker(fresh, date, { cohort: 2025 }).yearGroup, 4, 'a different cohort');
+  assert.equal(termTracker(fresh, date, { termOverride: 'y3-spr' }).realm, 'y3-spr', 'the grown-ups can choose the term');
+  // honest rates: a range, and nothing until there are 5 answers
+  const w = wilson(8, 10);
+  assert.ok(w.lo < 0.8 && w.hi > 0.8 && w.lo > 0.4);
+  assert.equal(rateText([1, 1, 1]), '3 so far');
+  assert.match(rateText([1, 1, 1, 1, 0]), /^80% \(\d+–\d+%\)$/);
+});

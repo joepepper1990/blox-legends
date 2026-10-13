@@ -31,7 +31,10 @@ export function defaults() {
     day: freshDay(today()),
     history: [],
     totals: { ms: 0, answered: 0, correct: 0, runs: 0 },
-    settings: { readAloud: true, dailyMin: 25 },
+    settings: { readAloud: true, dailyMin: 25, maxLead: 1 },
+    // Term Tracker: the school year (by its September) in which he is in
+    // Year 3, and an optional realm chosen by the grown-ups
+    prefs: { cohort: 2026, termOverride: '' },
     created: Date.now(),
   };
 }

@@ -763,6 +763,7 @@ button {
 }
 .tag {
   display: inline-block;
+  white-space: nowrap;
   font-size: 13px;
   font-weight: 600;
   padding: 2px 8px;
@@ -798,6 +799,23 @@ button {
 }
 .tag.retained {
   color: #2f8f3a;
+}
+.tag.waiting,
+.tag.obj-later {
+  color: #8a8fa8;
+}
+.tag.refresh,
+.tag.mis {
+  color: #c2410c;
+}
+.tag.obj-secure {
+  color: var(--good);
+}
+.tag.obj-started {
+  color: #c27400;
+}
+.tag.obj-not-started {
+  color: #6b5bd6;
 }
 .pin-pad {
   display: grid;

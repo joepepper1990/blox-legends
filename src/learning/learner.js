@@ -22,6 +22,8 @@
 //            ret, c21, mas} (days), uv (Accurate unverified, from v1), rf
 //            (needs refresh), chk {step, due, gapFrom, res, pr}, tr {mech:
 //            [right, asked]} and tl (last transfer answers, [right, mech]),
+//            nw (results on new questions), dr (results in delayed-recall
+//            checks), ck [checks passed, checks failed],
 //            fa (recent fact results), fl (fluency samples), last (day)
 //   it[id][key]  facts and authored items: [box, due, lastDay, n, c, lastRightDay]
 //   mis[id][misId]  [n, lastDay, recheckDay, state: open|followed|fixed]
@@ -56,7 +58,7 @@ export function freshLearn() {
   return { v: LEARN_V, sk: {}, it: {}, mis: {}, rc: {}, al: { d: 0, n: {} }, cnt: 0 };
 }
 export function freshSkill() {
-  return { n: 0, c: 0, b: 1, bs: 0, pf: 0, ev: [], ms: {}, uv: 0, rf: 0, chk: null, tr: {}, tl: [], fa: [], fl: [], last: null };
+  return { n: 0, c: 0, b: 1, bs: 0, pf: 0, ev: [], ms: {}, uv: 0, rf: 0, chk: null, tr: {}, tl: [], fa: [], fl: [], nw: [], dr: [], ck: [0, 0], last: null };
 }
 
 const push = (arr, v, max) => {
@@ -120,6 +122,10 @@ export function applyAttempt(state, a, reg) {
       if (info.cls === 'fact') sk.fa = push(sk.fa, a.c ? 1 : 0, RULES.facts.window);
       else if (a.u) sk.ev = push(sk.ev, a.c ? 1 : 0, RULES.accurate.window);
     }
+
+    // ---- for the grown-ups: new questions and delayed recall
+    if (solid(a) && a.u) sk.nw = push(sk.nw || [], a.c ? 1 : 0, RULES.recent);
+    if (solid(a) && a.pu === 'check') sk.dr = push(sk.dr || [], a.c ? 1 : 0, RULES.recent);
 
     // ---- fluency samples (direct recall formats, his thinking time only)
     if (a.c && a.f && Number.isFinite(a.fl) && a.fl > 0) sk.fl = push(sk.fl, a.fl, RULES.fluency.keep);
@@ -227,6 +233,8 @@ function finishCheck(sk, d) {
     sk.chk.res = [];
     return;
   }
+  const [passed, failed] = sk.ck || [0, 0];
+  sk.ck = right === RULES.checkItems ? [passed + 1, failed] : [passed, failed + 1];
   if (right === RULES.checkItems) {
     sk.rf = 0;
     if (step === STEP_VERIFY) {
