@@ -7,6 +7,7 @@ import * as verbal from './verbal.js';
 import * as shape from './shape.js';
 import * as y3 from './number-y3.js';
 import * as cw from './code-words.js';
+import * as nvr from './nvr.js';
 
 export const GEN = {
   table: facts.table,
@@ -45,6 +46,8 @@ export const GEN = {
   ant: cw.ant,
   odd: cw.odd,
   compound: cw.compound,
+  nvrSeries: nvr.nvrSeries,
+  nvrOdd: nvr.nvrOdd,
 };
 
 export function addGenerators(more) {

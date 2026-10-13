@@ -120,6 +120,59 @@ test('the glyph width table used to check text fits still matches the real font'
   assert.deepEqual(diffs, []);
 });
 
+test('shape-pattern pictures and flat cube drawings draw something in every box', async () => {
+  const { page } = await newPage();
+  await page.goto(`${base}?nosw`);
+  await ready(page);
+  const empty = await page.evaluate(async () => {
+    const { drawSeries, drawCard, drawBox } = await import('./src/engine/nvr-draw.js');
+    const { drawBuild } = await import('./src/engine/iso-draw.js');
+    const { makeItem } = await import('./src/learning/question.js');
+    const { seeded } = await import('./src/learning/rng.js');
+    // dark ink pixels inside a box, clear of its border
+    const inked = (g, x, y, size) => {
+      const d = g.getImageData(x + 14, y + 14, size - 28, size - 28).data;
+      for (let i = 0; i < d.length; i += 4) if (d[i] < 120 && d[i + 2] < 140) return true;
+      return false;
+    };
+    const bad = [];
+    for (let seed = 0; seed < 40; seed++) {
+      const skill = seed % 2 ? 's.nvrOdd' : 's.nvrSeries';
+      const q = makeItem(skill, { band: 1 + (seed % 5), count: 4, rng: seeded(seed) });
+      const c = document.createElement('canvas');
+      c.width = 1300;
+      c.height = 300;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      if (q.frames) {
+        drawSeries(g, q.frames);
+        q.frames.forEach((f, i) => inked(g, 24 + i * 224, 24, 200) || bad.push(`${skill} ${seed} frame ${i}`));
+      }
+      for (const o of q.options) {
+        g.clearRect(0, 0, c.width, c.height);
+        drawCard(g, o.figure, o.label);
+        inked(g, 18, 18, 220) || bad.push(`${skill} ${seed} option ${o.label}`);
+      }
+    }
+    // builds as drawn on Code Vault doors
+    for (let seed = 0; seed < 20; seed++) {
+      const skill = seed % 2 ? 's.rot3' : 's.rotY';
+      const q = makeItem(skill, { band: 1 + (seed % 5), format: 'door', count: 4, rng: seeded(seed) });
+      const c = document.createElement('canvas');
+      c.width = 240;
+      c.height = 240;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      for (const [name, cubes] of [['target', q.target], ...q.options.map((o) => [o.label, o.cubes])]) {
+        g.clearRect(0, 0, 240, 240);
+        drawBox(g, 20, 20, 200);
+        drawBuild(g, cubes, 120, 120, 200);
+        inked(g, 20, 20, 200) || bad.push(`${skill} ${seed} build ${name}`);
+      }
+    }
+    return bad;
+  });
+  assert.deepEqual(empty, []);
+});
+
 test('the old game save on this iPad is brought over once and left in place', async () => {
   const { ctx, page } = await newPage();
   const v1 = {

@@ -9,6 +9,7 @@
 //               `maxWidth` (by option count); never smaller than minHeight
 //   lines       how many coded lines it can show (door lines, sign lines)
 //   display     display kinds it can show (see formats.js)
+//   pictures    display kinds it draws flat rather than as a 3D scene
 //   input       'tap': the answer moment is a tap or a step, so its time is
 //               the thinking time; 'commit': the answer is a jump, and the
 //               time to get there is taken off (moveAllowanceMs)
@@ -31,7 +32,10 @@ export const MECHANICS = {
     evidenceMin: 3,
     label: { height: 1.1, maxWidth: { 3: 2.9, 4: 2.35 }, minHeight: 0.6, font: { size: 80, letterSpacing: 8 } },
     lines: 3,
-    display: ['text', 'lines', 'prose', 'column', 'grid', 'figure'],
+    display: ['text', 'lines', 'prose', 'column', 'grid', 'figure', 'cubes', 'builds'],
+    // builds and cubes are drawn on the door as flat pictures
+    // (engine/iso-draw.js), so every cube must be visible in the drawing
+    pictures: ['cubes', 'builds'],
     input: 'tap',
     lookahead: 0,
   },
@@ -40,8 +44,9 @@ export const MECHANICS = {
     options: [3, 4],
     evidenceMin: 3,
     label: { height: 0.9, maxWidth: { 3: 2.6, 4: 2.4 }, minHeight: 0.6, font: { size: 80, letterSpacing: 8 } },
-    lines: 0,
-    display: ['text', 'cubes', 'builds', 'grid', 'figure'],
+    // a board above the plates shows coded lines, a sum or a short story
+    lines: 3,
+    display: ['text', 'lines', 'prose', 'column', 'cubes', 'builds', 'grid', 'figure'],
     input: 'tap',
     lookahead: 0,
   },

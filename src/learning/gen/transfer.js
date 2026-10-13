@@ -7,6 +7,35 @@
 import { FORMATS } from '../formats.js';
 import { choose, explainOptions, question, pick, randInt, chance } from './util.js';
 import { story } from './stories.js';
+import { ROTATIONS, ROTS_Y, rotate, normalize } from '../gen-spatial.js';
+import { isoClear } from '../../engine/iso-draw.js';
+
+// On a Code Vault door builds are drawn flat, so each one is turned to a view
+// where no cube hides. Turning a build never changes the answer: the right
+// one is still the same build turned, and a mirror image or a changed build
+// still can't be turned to match.
+function clearViews(q) {
+  const group = q.skill === 's.rotY' ? ROTS_Y : ROTATIONS;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const best = (cubes, avoid) => {
+    for (const m of group) {
+      const turned = normalize(rotate(cubes, m));
+      if (isoClear(turned) && !(avoid && same(turned, avoid))) return turned;
+    }
+    return null;
+  };
+  const target = best(q.target);
+  if (target) q.target = target;
+  for (const o of q.options) {
+    // the right build must still look turned
+    const shown = best(rotate(o.cubes, o.rot), normalize(q.target));
+    if (shown) {
+      o.cubes = shown;
+      o.rot = ROTS_Y[0];
+    }
+  }
+  return q;
+}
 
 // The numbers behind a number question, as a story.
 function storyOf(q) {
@@ -133,10 +162,13 @@ const MAKERS = { word, array, tenframe, complete };
 export function makeTransfer(skill, gen, opts) {
   const fmt = FORMATS[opts.format];
   if (fmt.presentation) {
-    const base = pick(opts.rng, gen.formatsAt(skill, opts.band, opts.count));
+    const own = gen.formatsAt(skill, opts.band, opts.count).filter((f) => skill.formats.includes(f) && opts.count >= FORMATS[f].minOptions);
+    if (!own.length) throw new Error(`${skill.id} can't be shown with ${opts.count} options`);
+    const base = pick(opts.rng, own);
     const q = gen.make(skill, { ...opts, format: base });
     q.base = base;
     q.format = opts.format;
+    if (opts.format === 'door' && q.kind === 'rotate') clearViews(q);
     return q;
   }
   const maker = MAKERS[opts.format];

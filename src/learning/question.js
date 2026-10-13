@@ -25,6 +25,16 @@ export function formatsAt(skillId, band, count = 3) {
   return gen.formatsAt(skill, band, count).filter((f) => skill.formats.includes(f));
 }
 
+// Can the skill be asked in this format with this many options? (An odd one
+// out needs three; a presentation transfer needs one of the skill's own
+// formats that works with that many.)
+export function canAsk(skillId, format, band, count) {
+  const fmt = FORMATS[format];
+  if (!fmt || count < fmt.minOptions) return false;
+  if (!fmt.presentation) return true;
+  return formatsAt(skillId, band, count).some((f) => count >= FORMATS[f].minOptions);
+}
+
 // Fact and authored skills list their items; procedural ones don't.
 export function itemsOf(skillId, band) {
   const { skill, gen } = generatorFor(skillId);

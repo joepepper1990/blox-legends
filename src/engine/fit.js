@@ -19,3 +19,24 @@ export function labelAspect(text, { size = 72, letterSpacing = 4, pad = 28, line
 }
 // The tallest a label can be while staying within maxWidth.
 export const fitLabelHeight = (text, height, maxWidth, opts) => Math.min(height, maxWidth / labelAspect(text, opts));
+
+// A short story or written sum on a door or board, word-wrapped. Each line is
+// at most widthPx wide at px; it fits if it takes no more than maxLines.
+export const PROSE_FIT = { widthPx: 800, px: 46, maxLines: 6 };
+export function wrapProse(text, { widthPx = PROSE_FIT.widthPx, px = PROSE_FIT.px } = {}) {
+  const lines = [];
+  let line = '';
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && textEm(next) * px > widthPx) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+export const proseFits = (text, opts) => {
+  const lines = wrapProse(text, opts);
+  return lines.length <= PROSE_FIT.maxLines && lines.every((l) => textEm(l) * PROSE_FIT.px <= PROSE_FIT.widthPx);
+};

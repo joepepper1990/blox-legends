@@ -5,6 +5,7 @@ import { solveNumber } from './number.js';
 import { solveVerbal, doorAgrees } from './verbal.js';
 import { solveShape } from './shape.js';
 import { solveWords } from './words.js';
+import { solveNvr } from './nvr.js';
 
 const SOLVERS = {
   m: (q) => solveNumber(q),
@@ -35,7 +36,7 @@ export function verify(q) {
   if (!doorAgrees(q)) return fail('door lines disagree with the question');
   // Block pictures are checked by geometry whatever the subject (e.g. a
   // times-table array); otherwise by the skill's subject.
-  const solver = extra[q.skill] || (q.kind ? SOLVERS.s : extra[q.skill.split('.')[0]] || SOLVERS[q.skill.split('.')[0]]);
+  const solver = extra[q.skill] || (q.kind?.startsWith('nvr') ? solveNvr : q.kind ? SOLVERS.s : extra[q.skill.split('.')[0]] || SOLVERS[q.skill.split('.')[0]]);
   const res = solver ? solver(q) : null;
   if (!res) return fail('no checker understands this question');
   if (res.reason && !res.correct.length) return fail(res.reason);

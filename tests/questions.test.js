@@ -149,6 +149,8 @@ test('checkers catch a wrong answer, a changed question and a broken option', ()
       const o = b.options[b.answerIndex];
       if (q.kind === 'rotate') o.cubes = o.cubes.map(([x, y, z]) => [-x, y, z]);
       else if (q.kind === 'top') o.grid = o.grid.map((r) => r.map((v) => 1 - v));
+      else if (q.kind === 'nvr-series') o.figure = { ...o.figure, count: o.figure.count + 1, fill: o.figure.fill === 'black' ? 'white' : 'black' };
+      else if (q.kind === 'nvr-odd') o.figure = { ...b.options[(b.answerIndex + 1) % b.options.length].figure };
       else o.label = `Q${o.label}`;
       if (!(q.kind === 'top' && !o.grid.flat().some(Boolean))) assert.equal(verify(b).ok, false, `${s.id}: broken right answer not caught`);
       // (Comparisons are skipped: nudging one number rarely changes which is bigger.)

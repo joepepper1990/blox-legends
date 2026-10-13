@@ -68,7 +68,7 @@ export const FORMATS = {
   rotate: f('choice', { minMs: 1500, display: ['cubes', 'builds'] }),
   top: f('choice', { minMs: 1500, display: ['cubes', 'grid'] }),
   'nvr-series': f('choice', { minMs: 1500, display: ['figure'] }),
-  'nvr-odd': f('choice', { minMs: 1500, display: ['figure'] }),
+  'nvr-odd': f('choice', { minMs: 1500, display: ['figure'], minOptions: 3 }),
   // ---- English ----
   spell: f('word', { minMs: 1200, speakOptions: false }),
   'prefix-make': f('word', { minMs: 1200 }),

@@ -18,6 +18,9 @@
 //   formats   practice formats (formats.js)
 //   home      the mechanic it is mostly practised in (default: its zone's)
 //   transfer  [{mech, format}] contexts that count towards "Applied"
+//   appliedMechs  how many different mechanics its transfer answers must
+//             come from for "Applied" (2, or 1 where only one other world can
+//             show it yet: a story needs a board, a view from above a 3D build)
 //   target    the band (1–5) at which Accurate is judged for this realm
 //   pre       skills that should be at Practising or above first
 //   status    live (scheduled now) | ready (built and validated, not yet
@@ -39,10 +42,10 @@ export const AREAS = {
   spatial: { name: 'Spatial reasoning', world: 'lab', zone: 'shape' },
 };
 
-const N = (o) => ({ zone: 'number', area: 'maths', ...o });
-const V = (o) => ({ zone: 'code', area: 'verbal', ...o });
-const S = (o) => ({ zone: 'shape', area: 'spatial', ...o });
-const E = (o) => ({ zone: 'word', area: 'english', ...o });
+const N = (o) => ({ zone: 'number', area: 'maths', appliedMechs: 2, ...o });
+const V = (o) => ({ zone: 'code', area: 'verbal', appliedMechs: 2, ...o });
+const S = (o) => ({ zone: 'shape', area: 'spatial', appliedMechs: 2, ...o });
+const E = (o) => ({ zone: 'word', area: 'english', appliedMechs: 2, ...o });
 
 // Transfer contexts (plan §7 "Applied": 3 correct across 2 mechanics).
 // `glass`, `door` and `board` show a practice item in the Glass Bridge, Code
@@ -98,11 +101,11 @@ export const SKILLS = [
   N({ id: 'm.steps', strand: 'place-value', name: 'Counting in 4s, 8s, 50s and 100s', realm: 'y3-aut', cls: 'procedural', gen: 'steps', formats: ['steps-next', 'steps-missing'], transfer: NUM_SHOW_T, target: 3, pre: ['m.x4'], status: 'ready' }),
   N({ id: 'm.add3m', strand: 'add-sub', name: 'Adding ones, tens or hundreds to a 3-digit number', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'add3m', formats: ['add'], transfer: NUM_T, target: 3, pre: ['m.pv3', 'm.add20'], status: 'ready' }),
   N({ id: 'm.sub3m', strand: 'add-sub', name: 'Taking ones, tens or hundreds from a 3-digit number', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'sub3m', formats: ['sub'], transfer: NUM_T, target: 3, pre: ['m.pv3', 'm.sub20'], status: 'ready' }),
-  N({ id: 'm.addcol', strand: 'add-sub', name: 'Column addition with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'addcol', formats: ['col-add'], transfer: NUM_T, target: 3, pre: ['m.add3m'], status: 'ready' }),
-  N({ id: 'm.subcol', strand: 'add-sub', name: 'Column subtraction with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'subcol', formats: ['col-sub'], transfer: NUM_T, target: 3, pre: ['m.sub3m'], status: 'ready' }),
+  N({ id: 'm.addcol', strand: 'add-sub', name: 'Column addition with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'addcol', formats: ['col-add'], home: 'logic-lock', transfer: NUM_T, target: 3, pre: ['m.add3m'], status: 'ready' }),
+  N({ id: 'm.subcol', strand: 'add-sub', name: 'Column subtraction with exchange', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'subcol', formats: ['col-sub'], home: 'logic-lock', transfer: NUM_T, target: 3, pre: ['m.sub3m'], status: 'ready' }),
   N({ id: 'm.inverse', strand: 'add-sub', name: 'Missing numbers and inverse operations', realm: 'y3-aut', cls: 'procedural', gen: 'inverse', formats: ['missing-add', 'missing-sub'], transfer: NUM_SHOW_T, target: 3, pre: ['m.add3m', 'm.sub3m'], status: 'ready' }),
   N({ id: 'm.double2', strand: 'add-sub', name: 'Doubling and halving bigger numbers', realm: 'y3-aut', cls: 'procedural', gen: 'double2', formats: ['double', 'half'], transfer: NUM_T, target: 3, pre: ['m.double', 'm.pv3'], status: 'ready' }),
-  N({ id: 'm.wp1', strand: 'problems', name: 'One-step word problems', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'wp1', formats: ['word'], home: 'logic-lock', transfer: [{ mech: 'choice-path', format: 'glass' }, { mech: 'pattern-plates', format: 'board' }], target: 3, pre: ['m.add3m', 'm.sub3m', 'm.x3'], status: 'ready' }),
+  N({ id: 'm.wp1', strand: 'problems', name: 'One-step word problems', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'wp1', formats: ['word'], home: 'logic-lock', transfer: [{ mech: 'pattern-plates', format: 'board' }], appliedMechs: 1, target: 3, pre: ['m.add3m', 'm.sub3m', 'm.x3'], status: 'ready' }),
 
   // ================= CODE (Code Vault) =================
   V({ id: 'v.alphaNext', strand: 'alphabet', name: 'Alphabet order', realm: 'found', cls: 'fact', gen: 'alphaNext', formats: ['after', 'before', 'two-after'], transfer: CODE_T, target: 2, pre: [], status: 'live' }),
@@ -123,7 +126,7 @@ export const SKILLS = [
   // ================= SHAPE (Build Lab) =================
   S({ id: 's.count1', strand: 'cubes', name: 'Counting blocks', realm: 'found', cls: 'procedural', gen: 'count1', formats: ['count'], transfer: CUBE_T, target: 2, pre: [], status: 'live' }),
   S({ id: 's.rotY', strand: 'cubes', name: 'Same build, turned round', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'rotY', formats: ['rotate'], transfer: SHAPE_T, target: 3, pre: [], status: 'live' }),
-  S({ id: 's.top', strand: 'cubes', name: 'Bird’s-eye view', realm: 'y3-aut', cls: 'procedural', gen: 'top', formats: ['top'], transfer: SHAPE_T, target: 3, pre: ['s.count1'], status: 'live' }),
+  S({ id: 's.top', strand: 'cubes', name: 'Bird’s-eye view', realm: 'y3-aut', cls: 'procedural', gen: 'top', formats: ['top'], transfer: [{ mech: 'choice-path', format: 'glass' }], appliedMechs: 1, target: 3, pre: ['s.count1'], status: 'live' }),
   S({ id: 's.count2', strand: 'cubes', name: 'Counting hidden blocks', realm: 'y3-aut', cls: 'procedural', core: true, gen: 'count2', formats: ['count'], transfer: CUBE_T, target: 3, pre: ['s.count1'], status: 'live' }),
   S({ id: 's.rot3', strand: 'cubes', name: 'Same build, any turn', realm: 'y3-aut', cls: 'procedural', gen: 'rot3', formats: ['rotate'], transfer: SHAPE_T, target: 3, pre: ['s.rotY'], status: 'live' }),
   S({ id: 's.count3', strand: 'cubes', name: 'Counting tall builds', realm: 'y3-aut', cls: 'procedural', gen: 'count3', formats: ['count'], transfer: CUBE_T, target: 3, pre: ['s.count2'], status: 'live' }),

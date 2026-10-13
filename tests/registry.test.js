@@ -60,10 +60,22 @@ test('prerequisites exist, come from the same or an earlier realm, and never loo
   for (const s of SKILLS) visit(s.id, []);
 });
 
+// Skills that can only travel to one other world for now, and why.
+const ONE_WORLD = {
+  'm.wp1': 'a story needs a door or board; the Glass Bridge sign is too small',
+  's.top': 'the view from above needs a 3D build; Vault doors draw them flat',
+};
+
 test('every skill can reach "Applied" in at least two mechanics (Word zone waits for its portals)', () => {
   for (const s of SKILLS) {
     if (NO_TRANSFER_YET.has(s.id)) continue;
     const mechs = new Set(s.transfer.map((t) => t.mech));
+    if (ONE_WORLD[s.id]) {
+      assert.equal(s.appliedMechs, 1, s.id);
+      assert.ok(mechs.size >= 1, `${s.id}: no transfer context`);
+      continue;
+    }
+    assert.equal(s.appliedMechs, 2, `${s.id}: only the listed skills may need one world`);
     assert.ok(mechs.size >= 2, `${s.id}: transfer contexts in ${[...mechs].join(', ') || 'none'}`);
   }
 });
