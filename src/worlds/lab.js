@@ -57,7 +57,8 @@ export class Lab extends World {
 
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
     g.ui.banner('BUILD LAB', 'Use your eyes and brain!');
-    this.later(900, () => g.ui.say('Look at the big build. Then step on the pad in front of your answer. You can walk around to look!'));
+    this.later(900, () =>
+      this.intro('Look closely at the puzzle. Then step on the pad in front of your answer. You can walk around to look!'));
     this.newPuzzle();
   }
 

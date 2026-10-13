@@ -67,7 +67,8 @@ export class Obby extends World {
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
     g.player.onLand = (c) => this.landed(c);
     g.ui.banner('GLASS BRIDGE', 'Pick the right glass!');
-    this.later(900, () => g.ui.say('Jump onto the glass with the right answer. Wrong glass smashes — but don’t worry, the clouds will catch you!'));
+    this.later(900, () =>
+      this.intro('Jump onto the glass with the right answer. Wrong glass smashes — but don’t worry, the clouds will catch you!'));
     this.showQuestion();
   }
 

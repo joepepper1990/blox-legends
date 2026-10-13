@@ -79,9 +79,16 @@ export class World {
     this.run.shown(q, spoken);
   }
 
+  // The opening tip, unless he's already answering (it mustn't cover the
+  // explanation of a mistake).
+  intro(text) {
+    if (!this.answered) this.game.ui.say(text);
+  }
+
   // Record the chosen option. Returns null if answers are paused.
   answerQ(q, k, { firstTry, at }) {
     if (this.game.paused()) return null;
+    this.answered = true;
     const r = this.run.answer(q, k, { firstTry });
     this.game.feedback(r, at);
     return r;

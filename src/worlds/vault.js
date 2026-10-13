@@ -88,7 +88,7 @@ export class Vault extends World {
     g.player.teleport(this.spawn.x, this.spawn.y, this.spawn.z, Math.PI);
     g.ui.banner('CODE VAULT', 'Crack the codes!');
     this.later(900, () =>
-      g.ui.say('Read the code on the door, then step on the tile with the answer. Use the alphabet strip at the top to help!'),
+      this.intro('Read the puzzle on the door, then step on the tile with the answer. For letter codes, use the alphabet strip at the top!'),
     );
   }
 
